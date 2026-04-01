@@ -3,8 +3,8 @@
 # Datos persistentes: añada un volumen y apunte DB_PATH + UPLOAD_DIR a esa ruta (ver comentario abajo).
 
 [build]
-builder = "NIXPACKS"
-buildCommand = "npm ci && npm run build"
+builder = "DOCKERFILE"
+dockerfilePath = "Dockerfile"
 
 [deploy]
 startCommand = "node apps/backend/dist/main.js"
