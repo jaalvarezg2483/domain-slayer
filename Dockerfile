@@ -11,7 +11,10 @@ WORKDIR /app
 
 COPY . .
 
-RUN npm install --legacy-peer-deps && npm run build
+# Lock v1 + alias «*-cjs» rompen npm 10 en Linux; instalación limpia en la imagen.
+RUN rm -f package-lock.json \
+  && npm install --legacy-peer-deps \
+  && npm run build
 
 ENV NODE_ENV=production
 
