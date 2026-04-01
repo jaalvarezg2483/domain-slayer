@@ -1,0 +1,20 @@
+# Ejemplo: ejecutar chequeo periódico vía HTTP al backend (ajustar URL y secret)
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: domain-slayer-monitoring
+spec:
+  schedule: "*/15 * * * *"
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          restartPolicy: OnFailure
+          containers:
+            - name: curl
+              image: curlimages/curl:8.5.0
+              args:
+                - "-sS"
+                - "-X"
+                - "POST"
+                - "http://domain-slayer-backend:3000/api/monitoring/check-all"

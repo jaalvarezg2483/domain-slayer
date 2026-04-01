@@ -1,0 +1,21 @@
+{
+  "name": "@domain-slayer/inventory-service",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "build": "tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "@domain-slayer/application": "file:../../packages/application",
+    "@domain-slayer/domain": "file:../../packages/domain",
+    "@domain-slayer/infrastructure": "file:../../packages/infrastructure",
+    "@domain-slayer/shared": "file:../../packages/shared",
+    "moleculer": "^0.14.33"
+  },
+  "devDependencies": {
+    "typescript": "^5.6.3"
+  }
+}

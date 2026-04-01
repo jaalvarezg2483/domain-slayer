@@ -1,0 +1,30 @@
+# Stack local ligero: SQLite en volumen (sin contenedor SQL Server).
+# Para SQL Server en Docker, usar DB_TYPE=mssql y servicio sqlserver aparte.
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: apps/backend/Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      NODE_ENV: production
+      API_PORT: "3000"
+      API_HOST: "0.0.0.0"
+      DB_TYPE: sqlite
+      DB_PATH: /data/domain-slayer.db
+      DB_SYNC: "true"
+    volumes:
+      - backend_sqlite:/data
+
+  frontend:
+    build:
+      context: .
+      dockerfile: apps/frontend/Dockerfile
+    ports:
+      - "8080:80"
+    depends_on:
+      - backend
+
+volumes:
+  backend_sqlite:

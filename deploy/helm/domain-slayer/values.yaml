@@ -1,0 +1,34 @@
+global:
+  imageRegistry: ""
+  imagePullSecrets: []
+
+backend:
+  replicaCount: 2
+  image:
+    repository: your-registry.azurecr.io/domain-slayer-backend
+    tag: latest
+    pullPolicy: IfNotPresent
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: "1"
+      memory: 512Mi
+  env:
+    NODE_ENV: production
+    API_PORT: "3000"
+  secretName: domain-slayer-db
+
+frontend:
+  replicaCount: 2
+  image:
+    repository: your-registry.azurecr.io/domain-slayer-frontend
+    tag: latest
+  ingress:
+    enabled: true
+    className: webapprouting.kubernetes.azure.com
+    host: inventory.ejemplo.com
+    tls:
+      enabled: true
+      secretName: domain-slayer-tls

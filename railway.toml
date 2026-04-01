@@ -1,0 +1,13 @@
+# DomainSlayer — despliegue en Railway (https://railway.app)
+# Tras conectar el repo: Variables → añada JWT_SECRET, INITIAL_ADMIN_*, NODE_ENV=production
+# Datos persistentes: añada un volumen y apunte DB_PATH + UPLOAD_DIR a esa ruta (ver comentario abajo).
+
+[build]
+builder = "NIXPACKS"
+buildCommand = "npm ci && npm run build"
+
+[deploy]
+startCommand = "node apps/backend/dist/main.js"
+healthcheckPath = "/api/health"
+healthcheckTimeout = 120
+restartPolicyType = "ON_FAILURE"

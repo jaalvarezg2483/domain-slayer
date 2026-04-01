@@ -1,0 +1,56 @@
+stages:
+  - build
+  - image
+  - deploy
+
+variables:
+  DOCKER_TLS_CERTDIR: ""
+  IMAGE_BACKEND: $CI_REGISTRY_IMAGE/backend
+  IMAGE_FRONTEND: $CI_REGISTRY_IMAGE/frontend
+
+build:backend:
+  stage: build
+  image: node:20-bookworm-slim
+  script:
+    - npm ci
+    - npm run build:all
+  artifacts:
+    paths:
+      - apps/backend/dist
+      - packages/*/dist
+      - services/*/dist
+    expire_in: 1 day
+
+docker:backend:
+  stage: image
+  image: docker:24
+  services:
+    - docker:24-dind
+  script:
+    - docker build -f apps/backend/Dockerfile -t $IMAGE_BACKEND:$CI_COMMIT_SHA -t $IMAGE_BACKEND:latest .
+    - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
+    - docker push $IMAGE_BACKEND:$CI_COMMIT_SHA
+    - docker push $IMAGE_BACKEND:latest
+  only:
+    - main
+    - develop
+
+docker:frontend:
+  stage: image
+  image: docker:24
+  services:
+    - docker:24-dind
+  script:
+    - docker build -f apps/frontend/Dockerfile -t $IMAGE_FRONTEND:$CI_COMMIT_SHA -t $IMAGE_FRONTEND:latest .
+    - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
+    - docker push $IMAGE_FRONTEND:$CI_COMMIT_SHA
+    - docker push $IMAGE_FRONTEND:latest
+  only:
+    - main
+    - develop
+
+# deploy:helm:
+#   stage: deploy
+#   image: alpine/helm:latest
+#   script:
+#     - helm upgrade --install domain-slayer ./deploy/helm/domain-slayer -f values-prod.yaml

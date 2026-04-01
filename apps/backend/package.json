@@ -1,0 +1,43 @@
+{
+  "name": "@domain-slayer/backend",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "node ../../node_modules/tsx/dist/cli.mjs src/main.ts",
+    "build": "tsc -p tsconfig.json",
+    "start": "node dist/main.js"
+  },
+  "dependencies": {
+    "@domain-slayer/alerting-service": "file:../../services/alerting.service",
+    "@domain-slayer/application": "file:../../packages/application",
+    "@domain-slayer/document-service": "file:../../services/document.service",
+    "@domain-slayer/domain": "file:../../packages/domain",
+    "@domain-slayer/infrastructure": "file:../../packages/infrastructure",
+    "@domain-slayer/inventory-service": "file:../../services/inventory.service",
+    "@domain-slayer/monitoring-service": "file:../../services/monitoring.service",
+    "@domain-slayer/shared": "file:../../packages/shared",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.21.1",
+    "jsonwebtoken": "^9.0.3",
+    "mammoth": "^1.12.0",
+    "moleculer": "^0.14.33",
+    "multer": "^1.4.5-lts.2",
+    "node-cron": "^3.0.3",
+    "nodemailer": "^6.9.16",
+    "pdf-parse": "^1.1.4",
+    "reflect-metadata": "^0.2.2",
+    "xlsx": "^0.18.5"
+  },
+  "devDependencies": {
+    "@types/cors": "^2.8.17",
+    "@types/express": "^4.17.21",
+    "@types/jsonwebtoken": "^9.0.10",
+    "@types/multer": "^1.4.13",
+    "@types/node-cron": "^3.0.11",
+    "@types/nodemailer": "^6.4.17",
+    "tsx": "^4.19.2",
+    "typescript": "^5.6.3"
+  }
+}
