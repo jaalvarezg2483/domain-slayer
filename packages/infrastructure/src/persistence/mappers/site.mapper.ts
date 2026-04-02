@@ -43,7 +43,7 @@ export function mapSiteEntityToDomain(e: SiteEntity): Site {
     sslValidFrom: e.sslValidFrom,
     sslValidTo: e.sslValidTo,
     sslValidToManual: e.sslValidToManual,
-    sslExpirySource: e.sslExpirySource as Site["sslExpirySource"],
+    sslExpirySource: (e.sslExpirySource ?? "unavailable") as Site["sslExpirySource"],
     sslValidToFinal: e.sslValidToFinal,
     sslSerialNumber: e.sslSerialNumber,
     sslStatus: e.sslStatus as Site["sslStatus"],

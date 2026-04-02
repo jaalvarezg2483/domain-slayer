@@ -123,8 +123,8 @@ export class SiteEntity {
   @Column({ name: "ssl_valid_to_manual", type: "datetime", nullable: true })
   sslValidToManual!: Date | null;
 
-  @Column({ name: "ssl_expiry_source", type: "varchar", length: 20 })
-  sslExpirySource!: string;
+  @Column({ name: "ssl_expiry_source", type: "varchar", length: 20, nullable: true })
+  sslExpirySource!: string | null;
 
   @Column({ name: "ssl_valid_to_final", type: "datetime", nullable: true })
   sslValidToFinal!: Date | null;

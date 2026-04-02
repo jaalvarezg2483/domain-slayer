@@ -132,7 +132,7 @@ export class SqlSiteRepository implements SiteRepository {
     existing.sslValidToFinal = computeSslExpiryFinal(
       existing.sslValidTo,
       existing.sslValidToManual,
-      existing.sslExpirySource as Site["sslExpirySource"]
+      (existing.sslExpirySource ?? "unavailable") as Site["sslExpirySource"]
     );
     const saved = await this.repo.save(existing, { reload: true });
     return mapSiteEntityToDomain(saved);
@@ -238,7 +238,7 @@ export class SqlSiteRepository implements SiteRepository {
       existing.sslValidToFinal = computeSslExpiryFinal(
         existing.sslValidTo,
         existing.sslValidToManual,
-        existing.sslExpirySource as Site["sslExpirySource"]
+        (existing.sslExpirySource ?? "unavailable") as Site["sslExpirySource"]
       );
     }
     await this.repo.save(existing);

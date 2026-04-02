@@ -21,16 +21,13 @@ import { ensureMssqlSiteResolutionColumns } from "./ensure-mssql-resolution-colu
 import { ensureSqliteSchema } from "./sqlite-ensure-schema.js";
 
 async function main() {
-  /* Railway/Render/Fly inyectan PORT; si además hay API_PORT (p. ej. 3000), el proxy falla con 503. */
-  if (process.env.PORT?.trim()) {
+  /* Railway, Render, Fly, etc. suelen definir PORT; nuestro esquema usa API_PORT. */
+  if (process.env.PORT?.trim() && !process.env.API_PORT?.trim()) {
     process.env.API_PORT = process.env.PORT.trim();
   }
 
   const env = loadEnv();
   const logger = createLogger(env);
-  const host = process.env.API_HOST ?? "0.0.0.0";
-  const listenPort =
-    Number.isFinite(env.API_PORT) && env.API_PORT >= 1 && env.API_PORT <= 65535 ? env.API_PORT : 3000;
 
   if (process.env.SMTP_HOST?.trim()) {
     logger.info({ host: process.env.SMTP_HOST.trim() }, "SMTP configurado (notificaciones por correo)");
@@ -55,24 +52,6 @@ async function main() {
     const dbFile = process.env.DB_PATH ?? ".data/domain-slayer.db";
     fs.mkdirSync(path.dirname(path.resolve(process.cwd(), dbFile)), { recursive: true });
   }
-
-  const app = express();
-  app.disable("x-powered-by");
-  /* Antes de TypeORM/Moleculer: el healthcheck de Railway no recibe 503 por arranque lento. */
-  app.get("/api/health", (_req, res) => {
-    res.json({ status: "ok", ts: new Date().toISOString() });
-  });
-
-  await new Promise<void>((resolve, reject) => {
-    const srv = app.listen(listenPort, host, () => {
-      logger.info(
-        { host, port: listenPort, railwayPort: process.env.PORT ?? null },
-        "API HTTP escuchando (healthcheck disponible)"
-      );
-      resolve();
-    });
-    srv.on("error", reject);
-  });
 
   const ds = buildDataSourceFromEnv();
   await ds.initialize();
@@ -120,6 +99,7 @@ async function main() {
 
   const scheduler = createMonitoringScheduler(broker, ds, logger);
 
+  const app = express();
   app.use(cors());
   app.use(express.json({ limit: "2mb" }));
   const uploadDir = path.resolve(process.env.UPLOAD_DIR ?? path.join(process.cwd(), "data", "uploads", "documents"));
@@ -143,6 +123,11 @@ async function main() {
     });
   }
 
+  const host = process.env.API_HOST ?? "0.0.0.0";
+  const port = Number(process.env.API_PORT ?? 3000);
+  app.listen(port, host, () => {
+    logger.info({ host, port }, "API HTTP escuchando");
+  });
 }
 
 main().catch((err) => {
