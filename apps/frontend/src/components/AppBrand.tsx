@@ -3,6 +3,11 @@ import { useEffect, useState } from "react";
 /** Logo opcional: `public/grupo-purdy-logo.png` */
 const BRAND_LOGO_PNG = "/grupo-purdy-logo.png";
 
+/** Título bajo el logo: variable de entorno en build (Railway/Docker: VITE_APP_TITLE). */
+const APP_TITLE =
+  (typeof import.meta.env.VITE_APP_TITLE === "string" && import.meta.env.VITE_APP_TITLE.trim()) ||
+  "Inventario de sitios Web";
+
 type Props = {
   /** En login el fondo no es el del sidebar; sin lighten el logo se ve igual de bien */
   variant?: "sidebar" | "standalone";
@@ -39,7 +44,7 @@ export function AppBrand({ variant = "sidebar" }: Props) {
           <span className="brand-org-text">Grupo Purdy</span>
         )}
       </div>
-      <p className="brand-tagline">Inventario de sitios Web</p>
+      <p className="brand-tagline">{APP_TITLE}</p>
     </div>
   );
 }

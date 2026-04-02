@@ -9,6 +9,10 @@ RUN apt-get update \
 
 WORKDIR /app
 
+# Título en la UI (Vite lo incrusta en el build). En Railway: misma variable en el servicio (build + runtime).
+ARG VITE_APP_TITLE=Inventario de sitios Web
+ENV VITE_APP_TITLE=$VITE_APP_TITLE
+
 COPY . .
 
 # Lock v1 + alias «*-cjs» rompen npm 10 en Linux; instalación limpia en la imagen.

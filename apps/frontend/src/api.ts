@@ -98,6 +98,13 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     throw e;
   }
   if (res.status === 401) {
+    /* POST /auth/login devuelve 401 con { error } si el correo/clave no coinciden; no es «sesión expirada». */
+    const loginAttempt = /\/auth\/login$/i.test(path);
+    if (loginAttempt) {
+      const err = await res.json().catch(() => ({} as { error?: string }));
+      const msg = (err as { error?: string }).error?.trim();
+      throw new Error(msg || "Credenciales incorrectas.");
+    }
     redirectLoginIfUnauthorized();
     throw new Error("Sesión no válida o expirada. Vuelva a iniciar sesión.");
   }
