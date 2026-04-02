@@ -627,7 +627,7 @@ body {
 }
 .login-standalone__inner {
   width: 100%;
-  max-width: 20rem;
+  max-width: min(24rem, 100%);
   display: flex;
   flex-direction: column;
   align-items: stretch;
@@ -641,14 +641,23 @@ body {
   padding-bottom: 0.55rem;
 }
 .login-standalone__brand .brand-logo-row {
-  min-height: 2.35rem;
+  min-height: 3.75rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 .login-standalone__brand .brand-logo {
-  height: 34px;
+  height: auto;
+  width: min(100%, 20rem);
+  max-height: 4.5rem;
+  object-fit: contain;
 }
 .login-standalone__brand .brand-tagline {
-  font-size: 0.78rem;
-  margin: 0.35rem 0 0;
+  font-size: 0.82rem;
+  font-weight: 600;
+  line-height: 1.35;
+  margin: 0.45rem 0 0;
+  padding: 0 0.25rem;
 }
 .login-card {
   width: 100%;
@@ -1280,15 +1289,10 @@ h2 {
   grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
 }
 
-/* Panel general: ancho de lectura acotado y centrado (tablas y tarjetas no ocupan todo el monitor) */
+/* Panel general: ancho completo del contenido (grid layout); tablas usan el espacio disponible */
 .dashboard-page {
   width: 100%;
-}
-@media (min-width: 768px) {
-  .dashboard-page {
-    max-width: min(50rem, 100%);
-    margin-inline: auto;
-  }
+  max-width: none;
 }
 
 /* Panel general: tarjetas de métricas compactas (2×2 móvil → 4 columnas en escritorio) */
@@ -1350,30 +1354,32 @@ h2 {
 }
 .table.table--dashboard-sites th:nth-child(1),
 .table.table--dashboard-sites td:nth-child(1) {
-  width: 20%;
+  width: 18%;
   min-width: 0;
   word-break: normal;
   overflow-wrap: break-word;
 }
 .table.table--dashboard-sites th:nth-child(2),
 .table.table--dashboard-sites td:nth-child(2) {
-  width: 11%;
+  width: 9%;
 }
 .table.table--dashboard-sites th:nth-child(3),
 .table.table--dashboard-sites td:nth-child(3) {
-  width: 12%;
+  width: 9%;
 }
+/* SSL: más ancho para avisos largos («Nombre no coincide») sin invadir SSL vence */
 .table.table--dashboard-sites th:nth-child(4),
 .table.table--dashboard-sites td:nth-child(4) {
-  width: 12%;
+  width: 17%;
+  min-width: 7.5rem;
 }
 .table.table--dashboard-sites th:nth-child(5),
 .table.table--dashboard-sites td:nth-child(5) {
-  width: 11%;
+  width: 12%;
 }
 .table.table--dashboard-sites th:nth-child(6),
 .table.table--dashboard-sites td:nth-child(6) {
-  width: 11%;
+  width: 12%;
 }
 .table.table--dashboard-sites th:nth-child(7),
 .table.table--dashboard-sites td:nth-child(7) {
@@ -1382,14 +1388,22 @@ h2 {
   word-break: normal;
   overflow-wrap: break-word;
 }
-/* Columnas de badges: nunca partir palabra; centrado */
+/* Estado / Salud: badge en una línea */
 .table.table--dashboard-sites td:nth-child(2),
-.table.table--dashboard-sites td:nth-child(3),
-.table.table--dashboard-sites td:nth-child(4) {
+.table.table--dashboard-sites td:nth-child(3) {
   white-space: nowrap;
   text-align: center;
   word-break: normal;
   overflow-wrap: normal;
+}
+/* SSL: la celda y el badge pueden partir en 2 líneas para no solapar la columna siguiente */
+.table.table--dashboard-sites th:nth-child(4),
+.table.table--dashboard-sites td:nth-child(4) {
+  text-align: center;
+  white-space: normal;
+  word-break: normal;
+  overflow-wrap: break-word;
+  vertical-align: middle;
 }
 .table.table--dashboard-sites .badge {
   white-space: nowrap;
@@ -1404,6 +1418,11 @@ h2 {
   align-items: center;
   justify-content: center;
 }
+.table.table--dashboard-sites td:nth-child(4) .badge {
+  white-space: normal;
+  max-width: 100%;
+  box-sizing: border-box;
+}
 /* Pantallas estrechas: ancho mínimo + scroll suave (mejor que letras en columna) */
 @media (max-width: 720px) {
   .dashboard-page .table-scroll--dashboard-fit:has(.table--dashboard-sites) {
@@ -1411,7 +1430,7 @@ h2 {
     -webkit-overflow-scrolling: touch;
   }
   .table.table--dashboard-sites {
-    min-width: 34rem;
+    min-width: 38rem;
   }
 }
 .table.table--dashboard-expiry {
@@ -1438,8 +1457,7 @@ h2 {
   vertical-align: top;
 }
 .table.table--dashboard-sites th:nth-child(2),
-.table.table--dashboard-sites th:nth-child(3),
-.table.table--dashboard-sites th:nth-child(4) {
+.table.table--dashboard-sites th:nth-child(3) {
   text-align: center;
 }
 .table.table--dashboard-sites th {

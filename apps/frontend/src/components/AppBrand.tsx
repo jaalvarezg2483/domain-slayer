@@ -3,10 +3,14 @@ import { useEffect, useState } from "react";
 /** Logo opcional: `public/grupo-purdy-logo.png` */
 const BRAND_LOGO_PNG = "/grupo-purdy-logo.png";
 
-/** Título bajo el logo: variable de entorno en build (Railway/Docker: VITE_APP_TITLE). */
-const APP_TITLE =
-  (typeof import.meta.env.VITE_APP_TITLE === "string" && import.meta.env.VITE_APP_TITLE.trim()) ||
-  "Inventario Sitios Web Purdy";
+/** Título por defecto bajo el logo. */
+const DEFAULT_APP_TITLE = "Inventario Sitios Web Purdy";
+/** En sidebar: opcional `VITE_APP_TITLE` en build. En login (`standalone`) siempre el nombre completo Purdy. */
+function appTitleForVariant(variant: "sidebar" | "standalone"): string {
+  if (variant === "standalone") return DEFAULT_APP_TITLE;
+  const env = typeof import.meta.env.VITE_APP_TITLE === "string" ? import.meta.env.VITE_APP_TITLE.trim() : "";
+  return env || DEFAULT_APP_TITLE;
+}
 
 type Props = {
   /** En login el fondo no es el del sidebar; sin lighten el logo se ve igual de bien */
@@ -36,15 +40,15 @@ export function AppBrand({ variant = "sidebar" }: Props) {
             className="brand-logo"
             src={brandLogoSrc}
             alt="Grupo Purdy"
-            width={240}
-            height={52}
+            width={320}
+            height={69}
             onError={() => setBrandLogoSrc(null)}
           />
         ) : (
           <span className="brand-org-text">Grupo Purdy</span>
         )}
       </div>
-      <p className="brand-tagline">{APP_TITLE}</p>
+      <p className="brand-tagline">{appTitleForVariant(variant)}</p>
     </div>
   );
 }
