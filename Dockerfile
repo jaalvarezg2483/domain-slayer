@@ -12,6 +12,9 @@ WORKDIR /app
 # Título en la UI (Vite lo incrusta en el build). En Railway: misma variable en el servicio (build + runtime).
 ARG VITE_APP_TITLE=Inventario Sitios Web Purdy
 ENV VITE_APP_TITLE=$VITE_APP_TITLE
+# Opcional: URL pública para og:image / twitter:image en index.html (Vite %VITE_SITE_URL%)
+ARG VITE_SITE_URL=
+ENV VITE_SITE_URL=$VITE_SITE_URL
 
 COPY . .
 
