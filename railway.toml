@@ -1,10 +1,28 @@
 # DomainSlayer — despliegue en Railway (https://railway.app)
 # Tras conectar el repo: Variables → añada JWT_SECRET, INITIAL_ADMIN_*, NODE_ENV=production
 # Datos persistentes: añada un volumen y apunte DB_PATH + UPLOAD_DIR a esa ruta (ver comentario abajo).
+#
+# Watch paths: Railway a veces deja solo una carpeta (p. ej. apps/backend) al importar un monorepo;
+# entonces cambios en frontend, packages/ o Dockerfile no disparan deploy. Estas rutas fuerzan
+# redeploy ante cualquier cambio relevante del monorepo.
+# Ajustes → Root Directory del servicio: déjelo vacío o «/» (raíz del repo), no una subcarpeta.
 
 [build]
 builder = "DOCKERFILE"
 dockerfilePath = "Dockerfile"
+watchPatterns = [
+  "/Dockerfile",
+  "/railway.toml",
+  "/nixpacks.toml",
+  "/package.json",
+  "/package-lock.json",
+  "/.npmrc",
+  "/tsconfig.base.json",
+  "/apps/**",
+  "/packages/**",
+  "/services/**",
+  "/database/**",
+]
 
 [deploy]
 startCommand = "node apps/backend/dist/main.js"
