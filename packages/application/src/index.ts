@@ -6,6 +6,7 @@ export { DocumentService } from "./services/document-service.js";
 export { AlertService } from "./services/alert-service.js";
 export * from "./services/monitoring-runner.js";
 export * from "./services/site-domain-expiry.js";
+export * from "./services/site-ssl-expiry.js";
 export * from "./services/monitoring-persist.js";
 export * from "./services/alert-evaluator.js";
 export * from "./dto/site-dto.js";

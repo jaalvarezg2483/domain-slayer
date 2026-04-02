@@ -26,6 +26,8 @@ export const createSiteSchema = z.object({
   isActive: z.boolean().optional().default(true),
   domainExpiryManual: z.coerce.date().nullable().optional(),
   domainExpirySource: z.enum(["auto", "manual", "unavailable"]).optional(),
+  sslValidToManual: z.coerce.date().nullable().optional(),
+  sslExpirySource: z.enum(["auto", "manual", "unavailable"]).optional(),
 });
 
 export const updateSiteSchema = createSiteSchema.partial();

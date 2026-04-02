@@ -50,6 +50,23 @@ export async function ensureSqliteSchema(ds: DataSource, logger: Logger): Promis
     const siteNames = pragmaTableColumnNames(raw);
     await addSqliteColumnIfMissing(qr, siteNames, "ssl_resolution_notes", logger);
     await addSqliteColumnIfMissing(qr, siteNames, "domain_resolution_notes", logger);
+    await addSqliteColumnIfMissing(qr, siteNames, "ssl_valid_to_manual", logger);
+    await addSqliteColumnIfMissing(qr, siteNames, "ssl_expiry_source", logger);
+    await addSqliteColumnIfMissing(qr, siteNames, "ssl_valid_to_final", logger);
+
+    try {
+      await qr.query(
+        `UPDATE sites SET ssl_expiry_source = 'unavailable' WHERE ssl_expiry_source IS NULL OR ssl_expiry_source = ''`
+      );
+      await qr.query(
+        `UPDATE sites SET ssl_valid_to_final = ssl_valid_to WHERE ssl_valid_to IS NOT NULL AND ssl_valid_to_final IS NULL`
+      );
+      await qr.query(
+        `UPDATE sites SET ssl_expiry_source = 'auto' WHERE ssl_valid_to IS NOT NULL AND ssl_expiry_source = 'unavailable'`
+      );
+    } catch {
+      /* tabla vacía o columnas aún no visibles */
+    }
 
     await qr.query(`
       CREATE TABLE IF NOT EXISTS site_document_links (

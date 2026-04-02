@@ -1,25 +1,23 @@
+import { calendarDayDiffLocal } from "./calendar-day-local";
 import type { SiteRow } from "../types";
 
-/** Días de calendario desde hoy hasta la fecha (UTC); negativo si ya pasó. */
+/** Días de calendario desde hoy hasta la fecha, según el calendario local del navegador (no UTC). */
 export function calendarDaysUntil(iso: string | null): number | null {
   if (!iso) return null;
   const end = new Date(iso);
   if (Number.isNaN(end.getTime())) return null;
-  const now = new Date();
-  const start = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
-  const endDay = Date.UTC(end.getUTCFullYear(), end.getUTCMonth(), end.getUTCDate());
-  return Math.round((endDay - start) / 86_400_000);
+  return calendarDayDiffLocal(new Date(), end);
 }
 
-export type ExpiryUrgency = "red" | "yellow";
+export type ExpiryUrgency = "red" | "orange";
 
-/** Coincide con el backend: rojo si vencido o quedan menos de 3 días; amarillo 3–10 días. */
-export const EXPIRY_CRITICAL_DAYS = 3;
+/** Alineado con alertas: rojo si vencido o &lt;5 días; naranja de 5 a 10 días (inclusive). */
+export const EXPIRY_CRITICAL_DAYS = 5;
 
 export function urgencyFromDays(days: number): ExpiryUrgency | null {
   if (days < 0) return "red";
   if (days < EXPIRY_CRITICAL_DAYS) return "red";
-  if (days <= 10) return "yellow";
+  if (days <= 10) return "orange";
   return null;
 }
 
@@ -59,14 +57,15 @@ export function buildSitesExpiryProximity(sites: SiteRow[]): SiteExpiryProximity
 
   for (const site of sites) {
     const lines: ExpiryLine[] = [];
-    const ssl = collectLine(site.sslValidTo, site.sslStatus === "expired", "ssl");
+    const sslIso = site.sslValidToFinal ?? site.sslValidTo;
+    const ssl = collectLine(sslIso, site.sslStatus === "expired", "ssl");
     if (ssl) lines.push(ssl);
     const dom = collectLine(site.domainExpiryFinal, site.domainExpiryStatus === "expired", "domain");
     if (dom) lines.push(dom);
 
     if (lines.length === 0) continue;
 
-    const worst = lines.some((l) => l.urgency === "red") ? "red" : "yellow";
+    const worst = lines.some((l) => l.urgency === "red") ? "red" : "orange";
     rows.push({ site, worst, lines });
   }
 

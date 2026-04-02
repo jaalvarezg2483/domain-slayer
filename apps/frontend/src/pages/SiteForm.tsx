@@ -23,6 +23,7 @@ const empty = {
   isActive: true,
   /** YYYY-MM-DD para input type=date; vacío = sin fecha manual */
   domainExpiryManualStr: "",
+  sslExpiryManualStr: "",
 };
 
 function toSitePayload(form: typeof empty) {
@@ -46,6 +47,10 @@ function toSitePayload(form: typeof empty) {
       ? new Date(`${form.domainExpiryManualStr}T12:00:00`)
       : null,
     domainExpirySource: (form.domainExpiryManualStr ? "manual" : "auto") as "manual" | "auto",
+    sslValidToManual: form.sslExpiryManualStr
+      ? new Date(`${form.sslExpiryManualStr}T12:00:00`)
+      : null,
+    sslExpirySource: (form.sslExpiryManualStr ? "manual" : "auto") as "manual" | "auto",
   };
 }
 
@@ -70,6 +75,12 @@ export function SiteForm() {
           const d = typeof manualRaw === "string" ? new Date(manualRaw) : manualRaw;
           if (!Number.isNaN(d.getTime())) domainExpiryManualStr = d.toISOString().slice(0, 10);
         }
+        const sslManualRaw = row.sslValidToManual as string | Date | null | undefined;
+        let sslExpiryManualStr = "";
+        if (sslManualRaw) {
+          const d = typeof sslManualRaw === "string" ? new Date(sslManualRaw) : sslManualRaw;
+          if (!Number.isNaN(d.getTime())) sslExpiryManualStr = d.toISOString().slice(0, 10);
+        }
         setForm({
           siteName: String(row.siteName ?? ""),
           businessUnit: String(row.businessUnit ?? ""),
@@ -87,6 +98,7 @@ export function SiteForm() {
           notes: String(row.notes ?? ""),
           isActive: Boolean(row.isActive ?? true),
           domainExpiryManualStr,
+          sslExpiryManualStr,
         });
       })
       .catch((e: Error) => setErr(e.message));
@@ -222,6 +234,22 @@ export function SiteForm() {
             type="date"
             value={form.domainExpiryManualStr}
             onChange={(e) => setForm({ ...form, domainExpiryManualStr: e.target.value })}
+          />
+        </label>
+        <div className="span-2">
+          <h2 style={{ fontSize: "1.05rem", margin: "0.5rem 0 0.25rem" }}>Expiración del certificado SSL</h2>
+          <p className="muted small" style={{ margin: "0 0 0.5rem" }}>
+            Si el chequeo TLS no obtiene la fecha del certificado, indíquela aquí. Esa fecha prevalece según esta
+            sección (como el dominio manual). Déjelo vacío para usar solo el resultado automático del chequeo.
+          </p>
+        </div>
+        <label>
+          Fin de validez SSL (manual)
+          <input
+            className="input"
+            type="date"
+            value={form.sslExpiryManualStr}
+            onChange={(e) => setForm({ ...form, sslExpiryManualStr: e.target.value })}
           />
         </label>
       </div>

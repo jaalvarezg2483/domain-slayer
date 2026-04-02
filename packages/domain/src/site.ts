@@ -57,7 +57,13 @@ export interface Site {
   sslSubject: string | null;
   sslIssuer: string | null;
   sslValidFrom: Date | null;
+  /** Fin de validez según el último chequeo TLS (automático). */
   sslValidTo: Date | null;
+  /** Fecha manual si el chequeo no obtiene el certificado; prevalece según `sslExpirySource`. */
+  sslValidToManual: Date | null;
+  sslExpirySource: DomainExpirySource;
+  /** Fecha efectiva para listados, alertas y panel (manual o automática). */
+  sslValidToFinal: Date | null;
   sslSerialNumber: string | null;
   sslStatus: SslStatus;
   sslHostnameMatch: boolean | null;
@@ -99,6 +105,9 @@ export type SiteCreateInput = Omit<
   | "sslIssuer"
   | "sslValidFrom"
   | "sslValidTo"
+  | "sslValidToManual"
+  | "sslValidToFinal"
+  | "sslExpirySource"
   | "sslSerialNumber"
   | "sslStatus"
   | "sslHostnameMatch"
@@ -111,6 +120,9 @@ export type SiteCreateInput = Omit<
 > & {
   domainExpiryManual?: Date | null;
   domainExpirySource?: DomainExpirySource;
+  sslValidToManual?: Date | null;
+  /** Si no se envía, se infiere como `manual` si hay fecha manual, si no `unavailable`. */
+  sslExpirySource?: DomainExpirySource;
 };
 
 export type SiteUpdateInput = Partial<
@@ -135,5 +147,7 @@ export type SiteUpdateInput = Partial<
     | "isActive"
     | "domainExpiryManual"
     | "domainExpirySource"
+    | "sslValidToManual"
+    | "sslExpirySource"
   >
 >;

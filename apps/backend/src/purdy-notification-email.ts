@@ -1,4 +1,8 @@
 import type { Alert, AlertType, Site } from "@domain-slayer/domain";
+import {
+  calendarDayDiffInTimeZone,
+  DEFAULT_CALENDAR_TIME_ZONE,
+} from "@domain-slayer/shared";
 
 const LOGO_CID = "purdylogo@grupopurdy";
 
@@ -70,22 +74,24 @@ function rowHasExpiryAlert(r: PurdySiteEmailRow): boolean {
 
 /** Misma ventana que el panel «Alertas de vencimiento» (expiry-proximity.ts). */
 const PANEL_EXPIRY_WINDOW_DAYS = 10;
-const PANEL_EXPIRY_CRITICAL_DAYS = 3;
+const PANEL_EXPIRY_CRITICAL_DAYS = 5;
 
-function calendarDaysUntilUtc(d: Date | null | undefined): number | null {
+function panelCalendarTz(): string {
+  const z = process.env.CALENDAR_TIME_ZONE?.trim();
+  return z || DEFAULT_CALENDAR_TIME_ZONE;
+}
+
+function calendarDaysUntilPanel(d: Date | null | undefined): number | null {
   if (d == null) return null;
   const end = d instanceof Date ? d : new Date(d);
   if (Number.isNaN(end.getTime())) return null;
-  const now = new Date();
-  const start = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
-  const endDay = Date.UTC(end.getUTCFullYear(), end.getUTCMonth(), end.getUTCDate());
-  return Math.round((endDay - start) / 86_400_000);
+  return calendarDayDiffInTimeZone(new Date(), end, panelCalendarTz());
 }
 
-function panelUrgencyFromDays(days: number): "red" | "yellow" | null {
+function panelUrgencyFromDays(days: number): "red" | "orange" | null {
   if (days < 0) return "red";
   if (days < PANEL_EXPIRY_CRITICAL_DAYS) return "red";
-  if (days <= PANEL_EXPIRY_WINDOW_DAYS) return "yellow";
+  if (days <= PANEL_EXPIRY_WINDOW_DAYS) return "orange";
   return null;
 }
 
@@ -93,10 +99,10 @@ function collectPanelExpiryLine(
   date: Date | null | undefined,
   expiredFlag: boolean,
   kind: "ssl" | "domain"
-): { text: string; urgency: "red" | "yellow"; days: number } | null {
+): { text: string; urgency: "red" | "orange"; days: number } | null {
   const label = kind === "ssl" ? "SSL" : "Dominio";
   if (date) {
-    const days = calendarDaysUntilUtc(date);
+    const days = calendarDaysUntilPanel(date);
     if (days === null) return null;
     const u = panelUrgencyFromDays(days);
     if (!u) return null;
@@ -130,8 +136,9 @@ export function buildExpiryEmailRowsFromSites(sites: Site[], openAlerts: Alert[]
   const expiryRows: PurdySiteEmailRow[] = [];
 
   for (const site of activeSites) {
-    const dashLines: { text: string; urgency: "red" | "yellow"; days: number }[] = [];
-    const l1 = collectPanelExpiryLine(site.sslValidTo, site.sslStatus === "expired", "ssl");
+    const dashLines: { text: string; urgency: "red" | "orange"; days: number }[] = [];
+    const sslEff = site.sslValidToFinal ?? site.sslValidTo;
+    const l1 = collectPanelExpiryLine(sslEff, site.sslStatus === "expired", "ssl");
     if (l1) dashLines.push(l1);
     const l2 = collectPanelExpiryLine(site.domainExpiryFinal, site.domainExpiryStatus === "expired", "domain");
     if (l2) dashLines.push(l2);
@@ -141,7 +148,7 @@ export function buildExpiryEmailRowsFromSites(sites: Site[], openAlerts: Alert[]
       siteId: site.id,
       siteName: site.siteName,
       domain: site.domain,
-      sslValidTo: site.sslValidTo,
+      sslValidTo: sslEff,
       domainExpiryFinal: site.domainExpiryFinal,
       sslResolutionNotes: site.sslResolutionNotes,
       domainResolutionNotes: site.domainResolutionNotes,
@@ -172,7 +179,7 @@ export function buildExpiryEmailRowsFromSites(sites: Site[], openAlerts: Alert[]
       siteId: site.id,
       siteName: site.siteName,
       domain: site.domain,
-      sslValidTo: site.sslValidTo,
+      sslValidTo: site.sslValidToFinal ?? site.sslValidTo,
       domainExpiryFinal: site.domainExpiryFinal,
       sslResolutionNotes: site.sslResolutionNotes,
       domainResolutionNotes: site.domainResolutionNotes,
@@ -194,7 +201,7 @@ export type PurdySiteEmailRow = {
   domainResolutionNotes: string | null;
   alerts: Alert[];
   /** Textos iguales al panel «Alertas de vencimiento». */
-  dashboardExpiryLines?: { text: string; urgency: "red" | "yellow"; days: number }[];
+  dashboardExpiryLines?: { text: string; urgency: "red" | "orange"; days: number }[];
 };
 
 export type PurdyEmailBuildInput = {
@@ -552,7 +559,7 @@ export async function loadSiteRowsForAlerts(
         siteId: site.id,
         siteName: site.siteName,
         domain: site.domain,
-        sslValidTo: site.sslValidTo,
+        sslValidTo: site.sslValidToFinal ?? site.sslValidTo,
         domainExpiryFinal: site.domainExpiryFinal,
         sslResolutionNotes: site.sslResolutionNotes,
         domainResolutionNotes: site.domainResolutionNotes,

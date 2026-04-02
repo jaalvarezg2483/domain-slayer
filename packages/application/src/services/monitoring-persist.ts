@@ -1,6 +1,7 @@
 import type { Site } from "@domain-slayer/domain";
 import type { MonitoringCheckResult } from "../monitoring/types.js";
 import { computeDomainExpiryFinal } from "./site-domain-expiry.js";
+import { computeSslExpiryFinal } from "./site-ssl-expiry.js";
 import type { SiteRepository } from "../ports/site-repository.js";
 
 export function monitoringResultToOperationalPatch(
@@ -12,6 +13,17 @@ export function monitoringResultToOperationalPatch(
     source = "auto";
   }
   const domainExpiryFinal = computeDomainExpiryFinal(result.domainExpiryAuto, site.domainExpiryManual, source);
+
+  let sslSource = site.sslExpirySource;
+  if (
+    !site.sslValidToManual &&
+    result.sslValidTo &&
+    result.sslStatus !== "tls_error" &&
+    result.sslStatus !== "hostname_mismatch"
+  ) {
+    sslSource = "auto";
+  }
+  const sslValidToFinal = computeSslExpiryFinal(result.sslValidTo, site.sslValidToManual, sslSource);
 
   const registrarProvider =
     !site.registrarProvider?.trim() && result.domainRegistrarDetected?.trim()
@@ -38,6 +50,8 @@ export function monitoringResultToOperationalPatch(
     sslIssuer: result.sslIssuer,
     sslValidFrom: result.sslValidFrom,
     sslValidTo: result.sslValidTo,
+    sslExpirySource: sslSource,
+    sslValidToFinal,
     sslSerialNumber: result.sslSerialNumber,
     sslStatus: result.sslStatus as Site["sslStatus"],
     sslHostnameMatch: result.sslHostnameMatch,

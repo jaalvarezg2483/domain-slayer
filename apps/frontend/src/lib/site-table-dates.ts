@@ -1,4 +1,5 @@
 import type { SiteRow } from "../types";
+import { calendarDaysUntil, urgencyFromDays } from "./expiry-proximity";
 
 export function formatListDate(iso: string | null | undefined): string {
   if (!iso) return "—";
@@ -7,13 +8,22 @@ export function formatListDate(iso: string | null | undefined): string {
 }
 
 export function sslExpiryCellClass(s: SiteRow): string {
-  if (!s.sslValidTo) return "muted small";
-  if (s.sslStatus === "expiring_soon") return "table-expiry table-expiry--warn";
+  const iso = s.sslValidToFinal ?? s.sslValidTo;
+  if (!iso) return "muted small";
+  const days = calendarDaysUntil(iso);
+  if (days === null) return "muted small";
+  const u = urgencyFromDays(days);
+  if (u === "red") return "table-expiry table-expiry--critical";
+  if (u === "orange") return "table-expiry table-expiry--warn";
   return "muted small";
 }
 
 export function domainExpiryCellClass(s: SiteRow): string {
   if (!s.domainExpiryFinal) return "muted small";
-  if (s.domainExpiryStatus === "expiring_soon") return "table-expiry table-expiry--warn";
+  const days = calendarDaysUntil(s.domainExpiryFinal);
+  if (days === null) return "muted small";
+  const u = urgencyFromDays(days);
+  if (u === "red") return "table-expiry table-expiry--critical";
+  if (u === "orange") return "table-expiry table-expiry--warn";
   return "muted small";
 }

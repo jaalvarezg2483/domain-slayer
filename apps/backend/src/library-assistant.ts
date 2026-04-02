@@ -43,7 +43,7 @@ function siteBlock(s: Record<string, unknown>): string {
     `- Dominio: ${domain}`,
     `- Entorno: ${env}`,
     `- Activo en inventario: ${active}`,
-    `- SSL válido hasta: ${formatDate(s.sslValidTo)}`,
+    `- SSL válido hasta (sistema): ${formatDate(s.sslValidToFinal ?? s.sslValidTo)}`,
     `- Vencimiento dominio (calculado): ${formatDate(s.domainExpiryFinal)}`,
     `- Estado SSL (chequeo): ${String(s.sslStatus ?? "—")}`,
     `- Estado dominio: ${String(s.domainStatus ?? "—")}`,

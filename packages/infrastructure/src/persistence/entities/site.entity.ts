@@ -120,6 +120,15 @@ export class SiteEntity {
   @Column({ name: "ssl_valid_to", type: "datetime", nullable: true })
   sslValidTo!: Date | null;
 
+  @Column({ name: "ssl_valid_to_manual", type: "datetime", nullable: true })
+  sslValidToManual!: Date | null;
+
+  @Column({ name: "ssl_expiry_source", type: "varchar", length: 20 })
+  sslExpirySource!: string;
+
+  @Column({ name: "ssl_valid_to_final", type: "datetime", nullable: true })
+  sslValidToFinal!: Date | null;
+
   @Column({ name: "ssl_serial_number", type: "varchar", length: 256, nullable: true })
   sslSerialNumber!: string | null;
 

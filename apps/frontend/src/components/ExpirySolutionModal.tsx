@@ -124,7 +124,7 @@ export function ExpirySolutionModal({ row, onClose, onSaved }: Props) {
         {row.lines.map((line) => (
           <div
             key={line.kind}
-            className={line.urgency === "red" ? "expiry-detail--red" : "expiry-detail--yellow"}
+            className={line.urgency === "red" ? "expiry-detail--red" : "expiry-detail--orange"}
           >
             {expiryLineText(line, site)}
           </div>
@@ -166,9 +166,11 @@ export function ExpirySolutionModal({ row, onClose, onSaved }: Props) {
                 <dd>{site.sslSubject?.trim() || "—"}</dd>
                 <dt>Emisor</dt>
                 <dd>{site.sslIssuer?.trim() || "—"}</dd>
-                <dt>Válido hasta</dt>
+                <dt>Válido hasta (sistema)</dt>
                 <dd>
-                  {site.sslValidTo ? new Date(site.sslValidTo).toLocaleString("es-ES", esDate) : "—"}
+                  {site.sslValidToFinal || site.sslValidTo
+                    ? new Date((site.sslValidToFinal ?? site.sslValidTo) as string).toLocaleString("es-ES", esDate)
+                    : "—"}
                 </dd>
               </dl>
             </div>

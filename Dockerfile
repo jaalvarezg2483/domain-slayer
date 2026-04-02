@@ -10,7 +10,7 @@ RUN apt-get update \
 WORKDIR /app
 
 # Título en la UI (Vite lo incrusta en el build). En Railway: misma variable en el servicio (build + runtime).
-ARG VITE_APP_TITLE=Inventario de sitios Web
+ARG VITE_APP_TITLE=Inventario Sitios Web Purdy
 ENV VITE_APP_TITLE=$VITE_APP_TITLE
 
 COPY . .

@@ -1,7 +1,7 @@
 import { createId } from "@paralleldrive/cuid2";
 import type { Site, SiteCreateInput, SiteUpdateInput } from "@domain-slayer/domain";
 import type { SiteRepository, SiteListFilter } from "@domain-slayer/application";
-import { computeDomainExpiryFinal } from "@domain-slayer/application";
+import { computeDomainExpiryFinal, computeSslExpiryFinal, resolveSslExpirySource } from "@domain-slayer/application";
 import { escapeSqlLikePattern, tokenizeSearchQuery } from "@domain-slayer/shared";
 import type { EntityManager, Repository } from "typeorm";
 import { Brackets } from "typeorm";
@@ -43,6 +43,8 @@ export class SqlSiteRepository implements SiteRepository {
     const now = new Date();
     const source = input.domainExpirySource ?? "unavailable";
     const finalExpiry = computeDomainExpiryFinal(null, input.domainExpiryManual ?? null, source);
+    const sslSource = resolveSslExpirySource(input.sslValidToManual ?? null, input.sslExpirySource);
+    const sslFinal = computeSslExpiryFinal(null, input.sslValidToManual ?? null, sslSource);
     const row = this.repo.create({
       id: createId(),
       siteName: input.siteName,
@@ -83,6 +85,9 @@ export class SqlSiteRepository implements SiteRepository {
       sslIssuer: null,
       sslValidFrom: null,
       sslValidTo: null,
+      sslValidToManual: input.sslValidToManual ?? null,
+      sslExpirySource: sslSource,
+      sslValidToFinal: sslFinal,
       sslSerialNumber: null,
       sslStatus: "unknown",
       sslHostnameMatch: null,
@@ -116,11 +121,18 @@ export class SqlSiteRepository implements SiteRepository {
     if (input.isActive !== undefined) existing.isActive = input.isActive;
     if (input.domainExpiryManual !== undefined) existing.domainExpiryManual = input.domainExpiryManual;
     if (input.domainExpirySource !== undefined) existing.domainExpirySource = input.domainExpirySource;
+    if (input.sslValidToManual !== undefined) existing.sslValidToManual = input.sslValidToManual;
+    if (input.sslExpirySource !== undefined) existing.sslExpirySource = input.sslExpirySource;
     existing.updatedAt = new Date();
     existing.domainExpiryFinal = computeDomainExpiryFinal(
       existing.domainExpiryAuto,
       existing.domainExpiryManual,
       existing.domainExpirySource as Site["domainExpirySource"]
+    );
+    existing.sslValidToFinal = computeSslExpiryFinal(
+      existing.sslValidTo,
+      existing.sslValidToManual,
+      existing.sslExpirySource as Site["sslExpirySource"]
     );
     const saved = await this.repo.save(existing, { reload: true });
     return mapSiteEntityToDomain(saved);
@@ -215,6 +227,18 @@ export class SqlSiteRepository implements SiteRepository {
         existing.domainExpiryAuto,
         existing.domainExpiryManual,
         existing.domainExpirySource as Site["domainExpirySource"]
+      );
+    }
+    if (
+      fields.sslValidTo !== undefined ||
+      fields.sslValidToManual !== undefined ||
+      fields.sslExpirySource !== undefined ||
+      fields.sslValidToFinal !== undefined
+    ) {
+      existing.sslValidToFinal = computeSslExpiryFinal(
+        existing.sslValidTo,
+        existing.sslValidToManual,
+        existing.sslExpirySource as Site["sslExpirySource"]
       );
     }
     await this.repo.save(existing);

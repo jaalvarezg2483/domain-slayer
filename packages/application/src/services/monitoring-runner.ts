@@ -1,5 +1,9 @@
 import type { Site } from "@domain-slayer/domain";
-import { DEFAULT_ALERT_DAY_THRESHOLDS } from "@domain-slayer/shared";
+import {
+  calendarDayDiffInTimeZone,
+  DEFAULT_ALERT_DAY_THRESHOLDS,
+  DEFAULT_CALENDAR_TIME_ZONE,
+} from "@domain-slayer/shared";
 import type { MonitoringCheckResult } from "../monitoring/types.js";
 import type {
   DnsInspector,
@@ -8,9 +12,16 @@ import type {
   SslInspector,
 } from "../ports/monitoring.js";
 import { computeDomainExpiryFinal, resolveDomainExpirySource } from "./site-domain-expiry.js";
+import { computeSslExpiryFinal, resolveSslExpirySource } from "./site-ssl-expiry.js";
 
-function daysBetween(from: Date, to: Date): number {
-  return Math.ceil((to.getTime() - from.getTime()) / (1000 * 60 * 60 * 24));
+function monitoringCalendarTz(): string {
+  const z = process.env.CALENDAR_TIME_ZONE?.trim();
+  return z || DEFAULT_CALENDAR_TIME_ZONE;
+}
+
+/** Días de calendario en la zona configurada (p. ej. Costa Rica), no franjas de 24 h desde ahora. */
+function calendarDaysUntil(from: Date, to: Date): number {
+  return calendarDayDiffInTimeZone(from, to, monitoringCalendarTz());
 }
 
 function sslStatusToHealth(
@@ -66,7 +77,7 @@ export class MonitoringRunner {
 
     let domainExpiryStatus: MonitoringCheckResult["domainExpiryStatus"] = "unknown";
     if (finalExpiry) {
-      const d = daysBetween(now, finalExpiry);
+      const d = calendarDaysUntil(now, finalExpiry);
       if (d < 0) domainExpiryStatus = "expired";
       else if (thresholds.some((t) => d <= t && d >= 0)) domainExpiryStatus = "expiring_soon";
       else domainExpiryStatus = "ok";
@@ -74,9 +85,14 @@ export class MonitoringRunner {
       domainExpiryStatus = "unknown";
     }
 
+    const sslSourceForFinal = resolveSslExpirySource(site.sslValidToManual, site.sslExpirySource);
+    const sslFinalDate = computeSslExpiryFinal(sslResult.validTo, site.sslValidToManual, sslSourceForFinal);
+
     let sslStatus = sslResult.status;
-    if (sslResult.validTo && sslStatus !== "tls_error" && sslStatus !== "hostname_mismatch") {
-      const sslDays = daysBetween(now, sslResult.validTo);
+    if (sslResult.status === "hostname_mismatch") {
+      /* sin cambio: el certificado no corresponde al host */
+    } else if (sslFinalDate) {
+      const sslDays = calendarDaysUntil(now, sslFinalDate);
       if (sslDays < 0) sslStatus = "expired";
       else if (thresholds.some((t) => sslDays <= t && sslDays >= 0)) sslStatus = "expiring_soon";
       else sslStatus = "valid";
@@ -99,7 +115,10 @@ export class MonitoringRunner {
       checkStatus = "partial";
     }
 
-    const healthStatus = sslStatusToHealth(sslStatus, sslResult.validTo ? daysBetween(now, sslResult.validTo) : null);
+    const healthStatus = sslStatusToHealth(
+      sslStatus,
+      sslFinalDate ? calendarDaysUntil(now, sslFinalDate) : null
+    );
 
     const errParts = [sslResult.errorMessage, dnsResult.errorMessage].filter(Boolean);
     const errorMessage = errParts.length ? errParts.join(" | ") : null;

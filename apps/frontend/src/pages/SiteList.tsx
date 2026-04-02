@@ -4,13 +4,18 @@ import { api } from "../api";
 import { Badge } from "../components/Badge";
 import { SiteActiveBadge } from "../components/SiteActiveBadge";
 import { IconCheckCircle, IconRefreshCw, IconSearch } from "../components/NavIcons";
+import { TablePagination } from "../components/TablePagination";
 import { domainExpiryCellClass, formatListDate, sslExpiryCellClass } from "../lib/site-table-dates";
 import { labelEnvironment } from "../lib/status-labels";
 import type { SiteRow } from "../types";
 
+const PAGE_SIZE = 10;
+
 export function SiteList() {
   const [items, setItems] = useState<SiteRow[]>([]);
   const [total, setTotal] = useState(0);
+  const [page, setPage] = useState(1);
+  const [appliedSearch, setAppliedSearch] = useState("");
   const [search, setSearch] = useState("");
   const [err, setErr] = useState<string | null>(null);
   const [checkingAll, setCheckingAll] = useState(false);
@@ -18,10 +23,10 @@ export function SiteList() {
   const [checkErr, setCheckErr] = useState<string | null>(null);
   const [checkSuccessOpen, setCheckSuccessOpen] = useState(false);
 
-  const load = () => {
+  const load = (p: number, q: string) => {
     setErr(null);
     return api.sites
-      .list({ search })
+      .list({ search: q, limit: PAGE_SIZE, offset: (p - 1) * PAGE_SIZE })
       .then((r) => {
         setItems(r.items as SiteRow[]);
         setTotal(r.total);
@@ -30,9 +35,14 @@ export function SiteList() {
   };
 
   useEffect(() => {
-    void load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- carga inicial solo
-  }, []);
+    void load(page, appliedSearch);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- búsqueda aplicada o página
+  }, [page, appliedSearch]);
+
+  useEffect(() => {
+    const maxP = Math.max(1, Math.ceil(total / PAGE_SIZE));
+    setPage((p) => Math.min(p, maxP));
+  }, [total]);
 
   useEffect(() => {
     if (!checkSuccessOpen) return;
@@ -48,7 +58,7 @@ export function SiteList() {
     setCheckingAll(true);
     try {
       await api.monitoring.checkAll();
-      await load();
+      await load(page, appliedSearch);
       setCheckSuccessOpen(true);
     } catch (e) {
       setCheckErr((e as Error).message);
@@ -107,12 +117,25 @@ export function SiteList() {
               value={search}
               disabled={checkingAll}
               onChange={(e) => setSearch(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && !checkingAll && void load()}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !checkingAll) {
+                  setPage(1);
+                  setAppliedSearch(search.trim());
+                }
+              }}
             />
           </label>
         </div>
         <div className="sites-toolbar__actions">
-          <button type="button" className="btn primary sites-toolbar__btn" disabled={checkingAll} onClick={() => void load()}>
+          <button
+            type="button"
+            className="btn primary sites-toolbar__btn"
+            disabled={checkingAll}
+            onClick={() => {
+              setPage(1);
+              setAppliedSearch(search.trim());
+            }}
+          >
             Buscar
           </button>
           <button
@@ -139,6 +162,7 @@ export function SiteList() {
       </div>
       {err && <div className="card error">{err}</div>}
       <div className="card pad-0">
+        <div className="table-scroll">
         <table className="table">
           <thead>
             <tr>
@@ -168,8 +192,13 @@ export function SiteList() {
                 <td>
                   <Badge kind={s.sslStatus} variant="ssl" />
                 </td>
-                <td className={sslExpiryCellClass(s)} title={s.sslValidTo ? "Fin de validez del certificado TLS" : undefined}>
-                  {formatListDate(s.sslValidTo)}
+                <td
+                  className={sslExpiryCellClass(s)}
+                  title={
+                    s.sslValidToFinal || s.sslValidTo ? "Fin de validez del certificado (fecha que usa el sistema)" : undefined
+                  }
+                >
+                  {formatListDate(s.sslValidToFinal ?? s.sslValidTo)}
                 </td>
                 <td className={domainExpiryCellClass(s)} title={s.domainExpiryFinal ? "Fecha fin de dominio (la que usa el sistema)" : undefined}>
                   {formatListDate(s.domainExpiryFinal)}
@@ -178,6 +207,15 @@ export function SiteList() {
             ))}
           </tbody>
         </table>
+        </div>
+        <TablePagination
+          page={page}
+          pageSize={PAGE_SIZE}
+          total={total}
+          itemLabel="sitios"
+          disabled={checkingAll}
+          onPageChange={setPage}
+        />
       </div>
     </div>
   );

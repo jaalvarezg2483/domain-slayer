@@ -6,7 +6,7 @@ import "./styles.css";
 
 const appTitle =
   (typeof import.meta.env.VITE_APP_TITLE === "string" && import.meta.env.VITE_APP_TITLE.trim()) ||
-  "Inventario de sitios Web";
+  "Inventario Sitios Web Purdy";
 document.title = `${appTitle} · Grupo Purdy`;
 
 ReactDOM.createRoot(document.getElementById("root")!).render(

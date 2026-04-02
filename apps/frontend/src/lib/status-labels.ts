@@ -1,5 +1,6 @@
 /** Etiquetas en español para estados técnicos (API en inglés). */
 
+import { calendarDayDiffLocal } from "./calendar-day-local";
 import { EXPIRY_CRITICAL_DAYS } from "./expiry-proximity";
 
 const health: Record<string, string> = {
@@ -99,10 +100,6 @@ export function labelEnvironment(env: string): string {
   return m[env] ?? env;
 }
 
-function daysBetween(from: Date, to: Date): number {
-  return Math.ceil((to.getTime() - from.getTime()) / (86_400_000));
-}
-
 /** Compara host del sitio vs CN del certificado (sin www) para detectar errores de tipeo en el dominio. */
 function hostForMismatchCheck(host: string): string {
   const h = host.trim().toLowerCase();
@@ -129,6 +126,7 @@ export interface SiteDetailFields {
   httpsStatus?: string;
   sslSubject?: string | null;
   sslValidTo?: string | null;
+  sslValidToFinal?: string | null;
   domainExpiryFinal?: string | null;
   sslHostnameMatch?: boolean | null;
   lastCheckedAt?: string | null;
@@ -148,7 +146,7 @@ export function buildOperationalReport(site: SiteDetailFields): { level: "ok" | 
     });
   }
 
-  const sslTo = parseDate(site.sslValidTo);
+  const sslTo = parseDate(site.sslValidToFinal ?? site.sslValidTo);
   const ssl = site.sslStatus ?? "";
   if (ssl === "expired" || ssl === "tls_error" || ssl === "hostname_mismatch") {
     const detail =
@@ -159,7 +157,7 @@ export function buildOperationalReport(site: SiteDetailFields): { level: "ok" | 
           : "El certificado no coincide con el nombre del sitio (hostname).";
     out.push({ level: "bad", text: `SSL: ${detail}` });
   } else if (sslTo && ssl === "expiring_soon") {
-    const d = daysBetween(now, sslTo);
+    const d = calendarDayDiffLocal(now, sslTo);
     if (d < 0) {
       out.push({ level: "bad", text: "SSL: el certificado figura con fecha de fin ya pasada." });
     } else {
@@ -174,7 +172,7 @@ export function buildOperationalReport(site: SiteDetailFields): { level: "ok" | 
   const domExp = parseDate(site.domainExpiryFinal);
   const domSt = site.domainExpiryStatus ?? "";
   if (domExp) {
-    const dd = daysBetween(now, domExp);
+    const dd = calendarDayDiffLocal(now, domExp);
     if (dd < 0) {
       out.push({ level: "bad", text: "Dominio: la fecha de expiración indicada ya pasó; verificar renovación." });
     } else if (domSt === "expiring_soon" || (dd <= 60 && dd >= 0)) {

@@ -1,9 +1,19 @@
 import type { Alert, Site } from "@domain-slayer/domain";
 import type { MonitoringCheckResult } from "../monitoring/types.js";
-import { ALERT_EXPIRING_CRITICAL_MAX_DAYS, DEFAULT_ALERT_DAY_THRESHOLDS } from "@domain-slayer/shared";
+import {
+  ALERT_EXPIRING_CRITICAL_MAX_DAYS,
+  calendarDayDiffInTimeZone,
+  DEFAULT_ALERT_DAY_THRESHOLDS,
+  DEFAULT_CALENDAR_TIME_ZONE,
+} from "@domain-slayer/shared";
 
-function daysBetween(from: Date, to: Date): number {
-  return Math.ceil((to.getTime() - from.getTime()) / (1000 * 60 * 60 * 24));
+function alertCalendarTz(): string {
+  const z = process.env.CALENDAR_TIME_ZONE?.trim();
+  return z || DEFAULT_CALENDAR_TIME_ZONE;
+}
+
+function calendarDaysUntil(from: Date, to: Date): number {
+  return calendarDayDiffInTimeZone(from, to, alertCalendarTz());
 }
 
 /** Misma lógica que MonitoringRunner: hay aviso de vencimiento si quedan ≤ algún umbral (p. ej. 4 ≤ 60). */
@@ -28,7 +38,10 @@ export function buildAlertsFromCheck(
       isRead: false,
       isResolved: false,
     });
-  } else if (result.sslStatus === "tls_error" || result.sslStatus === "hostname_mismatch") {
+  } else if (
+    result.sslStatus === "hostname_mismatch" ||
+    (result.sslStatus === "tls_error" && !site.sslValidToFinal)
+  ) {
     out.push({
       siteId: site.id,
       alertType: "ssl_error",
@@ -37,14 +50,14 @@ export function buildAlertsFromCheck(
       isRead: false,
       isResolved: false,
     });
-  } else if (result.sslValidTo) {
-    const d = daysBetween(now, result.sslValidTo);
+  } else if (site.sslValidToFinal) {
+    const d = calendarDaysUntil(now, site.sslValidToFinal);
     if (isWithinExpiryAlertWindow(d, thresholds)) {
       out.push({
         siteId: site.id,
         alertType: "ssl_expiring",
         severity: d < ALERT_EXPIRING_CRITICAL_MAX_DAYS ? "critical" : "warning",
-        message: `SSL de ${site.domain} vence en ${d} día(s); válido hasta el ${result.sslValidTo.toISOString().slice(0, 10)}`,
+        message: `SSL de ${site.domain} vence en ${d} día(s); válido hasta el ${site.sslValidToFinal.toISOString().slice(0, 10)}`,
         isRead: false,
         isResolved: false,
       });
@@ -73,7 +86,7 @@ export function buildAlertsFromCheck(
 
   const finalExpiry = site.domainExpiryFinal;
   if (finalExpiry) {
-    const dd = daysBetween(now, finalExpiry);
+    const dd = calendarDaysUntil(now, finalExpiry);
     if (dd < 0) {
       out.push({
         siteId: site.id,

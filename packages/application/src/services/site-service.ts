@@ -4,6 +4,7 @@ import { NotFoundError, ValidationError } from "@domain-slayer/shared";
 import type { SiteRepository, SiteListFilter } from "../ports/site-repository.js";
 import { createSiteSchema, updateSiteSchema } from "../dto/site-dto.js";
 import { resolveDomainExpirySource } from "./site-domain-expiry.js";
+import { resolveSslExpirySource } from "./site-ssl-expiry.js";
 
 export class SiteService {
   constructor(private readonly sites: SiteRepository) {}
@@ -19,6 +20,7 @@ export class SiteService {
       throw new ValidationError(`Ya existe un sitio con el dominio ${dto.domain}`);
     }
     const source = resolveDomainExpirySource(dto.domainExpiryManual ?? null, dto.domainExpirySource);
+    const sslSource = resolveSslExpirySource(dto.sslValidToManual ?? null, dto.sslExpirySource);
     const input: SiteCreateInput = {
       siteName: dto.siteName,
       businessUnit: dto.businessUnit ?? null,
@@ -37,6 +39,8 @@ export class SiteService {
       isActive: dto.isActive ?? true,
       domainExpiryManual: dto.domainExpiryManual ?? null,
       domainExpirySource: source,
+      sslValidToManual: dto.sslValidToManual ?? null,
+      sslExpirySource: sslSource,
     };
     return this.sites.create(input);
   }
@@ -56,9 +60,13 @@ export class SiteService {
     const manual = dto.domainExpiryManual !== undefined ? dto.domainExpiryManual : current.domainExpiryManual;
     const sourceHint = dto.domainExpirySource !== undefined ? dto.domainExpirySource : current.domainExpirySource;
     const source = resolveDomainExpirySource(manual, sourceHint);
+    const sslManual = dto.sslValidToManual !== undefined ? dto.sslValidToManual : current.sslValidToManual;
+    const sslSourceHint = dto.sslExpirySource !== undefined ? dto.sslExpirySource : current.sslExpirySource;
+    const sslSource = resolveSslExpirySource(sslManual, sslSourceHint);
     const update: SiteUpdateInput = {
       ...dto,
       domainExpirySource: source,
+      sslExpirySource: sslSource,
     };
     const updated = await this.sites.update(id, update);
     if (!updated) throw new NotFoundError("Sitio", id);

@@ -6,7 +6,7 @@ const BRAND_LOGO_PNG = "/grupo-purdy-logo.png";
 /** Título bajo el logo: variable de entorno en build (Railway/Docker: VITE_APP_TITLE). */
 const APP_TITLE =
   (typeof import.meta.env.VITE_APP_TITLE === "string" && import.meta.env.VITE_APP_TITLE.trim()) ||
-  "Inventario de sitios Web";
+  "Inventario Sitios Web Purdy";
 
 type Props = {
   /** En login el fondo no es el del sidebar; sin lighten el logo se ve igual de bien */

@@ -12,6 +12,11 @@ export interface SiteRow {
   domainExpiryStatus?: string;
   domainExpiryFinal: string | null;
   sslValidTo: string | null;
+  sslValidToManual?: string | null;
+  sslExpirySource?: string;
+  /** Fecha efectiva (manual o del chequeo) para listados y alertas. */
+  sslValidToFinal?: string | null;
+  sslExpirySource?: string;
   lastCheckedAt: string | null;
   isActive: boolean;
   /** Notas libres: URLs (prod, dev), accesos admin, etc. */

@@ -470,7 +470,7 @@ export function buildLocalAssistantAnswer(
       lines.push(name);
       lines.push(`  URL: ${String(s.url ?? "—")}`);
       lines.push(`  Dominio: ${String(s.domain ?? "—")}`);
-      lines.push(`  SSL válido hasta: ${fmtDate(s.sslValidTo)}`);
+      lines.push(`  SSL válido hasta (sistema): ${fmtDate(s.sslValidToFinal ?? s.sslValidTo)}`);
       lines.push(`  Vencimiento dominio: ${fmtDate(s.domainExpiryFinal)}`);
       const notes = s.notes != null ? String(s.notes).trim() : "";
       if (notes) {

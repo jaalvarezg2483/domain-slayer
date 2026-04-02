@@ -5,15 +5,19 @@ import { Badge } from "../components/Badge";
 import { IconEye } from "../components/NavIcons";
 import { ExpirySolutionModal } from "../components/ExpirySolutionModal";
 import { SiteActiveBadge } from "../components/SiteActiveBadge";
+import { TablePagination } from "../components/TablePagination";
 import { buildSitesExpiryProximity, type SiteExpiryProximityRow } from "../lib/expiry-proximity";
 import { expiryLineText } from "../lib/expiry-line-text";
 import { domainExpiryCellClass, formatListDate, sslExpiryCellClass } from "../lib/site-table-dates";
 import type { AlertRow, SiteRow } from "../types";
 
+const DASH_SITES_PAGE_SIZE = 10;
+
 export function Dashboard() {
   const [data, setData] = useState<{ sites: SiteRow[]; alerts: AlertRow[] } | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [expiryModalRow, setExpiryModalRow] = useState<SiteExpiryProximityRow | null>(null);
+  const [dashSitePage, setDashSitePage] = useState(1);
 
   const reload = () => {
     api.dashboard
@@ -30,20 +34,33 @@ export function Dashboard() {
     reload();
   }, []);
 
+  useEffect(() => {
+    if (!data) return;
+    const maxP = Math.max(1, Math.ceil(data.sites.length / DASH_SITES_PAGE_SIZE));
+    setDashSitePage((p) => Math.min(p, maxP));
+  }, [data?.sites.length]);
+
   const expiryRows = useMemo(() => {
     if (!data) return [];
     return buildSitesExpiryProximity(data.sites);
   }, [data]);
 
+  const dashSiteSlice = useMemo(() => {
+    if (!data) return [];
+    const start = (dashSitePage - 1) * DASH_SITES_PAGE_SIZE;
+    return data.sites.slice(start, start + DASH_SITES_PAGE_SIZE);
+  }, [data, dashSitePage]);
+
   if (err) return <div className="card error">{err}</div>;
   if (!data) return <div className="muted">Cargando…</div>;
 
-  const critical = data.alerts.filter((a) => a.severity === "critical").length;
+  const expiryRedSites = expiryRows.filter((r) => r.worst === "red").length;
+  const expiryOrangeSites = expiryRows.filter((r) => r.worst === "orange").length;
 
   return (
-    <div className="stack">
+    <div className="stack dashboard-page">
       <h1>Panel general</h1>
-      <div className="grid stats">
+      <div className="grid stats dashboard-stats" aria-label="Resumen del inventario">
         <div className="card stat">
           <div className="stat-label">Sitios activos</div>
           <div className="stat-value">{data.sites.filter((s) => s.isActive !== false).length}</div>
@@ -53,8 +70,12 @@ export function Dashboard() {
           <div className="stat-value">{data.alerts.length}</div>
         </div>
         <div className="card stat">
-          <div className="stat-label">Críticas</div>
-          <div className="stat-value text-bad">{critical}</div>
+          <div className="stat-label">Vencen en menos de 5 días</div>
+          <div className="stat-value text-bad">{expiryRedSites}</div>
+        </div>
+        <div className="card stat">
+          <div className="stat-label">Vencen en 5 a 10 días</div>
+          <div className="stat-value text-warn-strong">{expiryOrangeSites}</div>
         </div>
       </div>
 
@@ -67,7 +88,8 @@ export function Dashboard() {
         </div>
         {expiryRows.length === 0 ? (
           <p className="muted">
-            Ningún certificado ni dominio en esta ventana (≤10 días o vencido). En rojo: vencido o menos de 3 días.
+            Ningún certificado ni dominio en esta ventana (≤10 días o vencido). En rojo: vencido o menos de 5 días; en
+            naranja: entre 5 y 10 días.
           </p>
         ) : (
           <>
@@ -76,6 +98,7 @@ export function Dashboard() {
               SSL quedan fuera de la ventana de aviso, la alerta desaparece sola. Use «Ver notas» para notas de resolución
               guardadas en el servidor.
             </p>
+            <div className="table-scroll">
             <table className="table expiry-alert-table">
               <thead>
                 <tr>
@@ -92,7 +115,9 @@ export function Dashboard() {
                   return (
                     <tr
                       key={row.site.id}
-                      className={row.worst === "red" ? "expiry-row expiry-row--red" : "expiry-row expiry-row--yellow"}
+                      className={
+                        row.worst === "red" ? "expiry-row expiry-row--red" : "expiry-row expiry-row--orange"
+                      }
                     >
                       <td>
                         <Link to={`/sites/${row.site.id}`}>{row.site.siteName}</Link>
@@ -102,7 +127,7 @@ export function Dashboard() {
                         {row.lines.map((line) => (
                           <div
                             key={line.kind}
-                            className={line.urgency === "red" ? "expiry-detail--red" : "expiry-detail--yellow"}
+                            className={line.urgency === "red" ? "expiry-detail--red" : "expiry-detail--orange"}
                           >
                             {expiryLineText(line, row.site)}
                           </div>
@@ -130,6 +155,7 @@ export function Dashboard() {
                 })}
               </tbody>
             </table>
+            </div>
           </>
         )}
       </div>
@@ -142,6 +168,7 @@ export function Dashboard() {
 
       <div className="card">
         <h2>Estado por sitio</h2>
+        <div className="table-scroll">
         <table className="table">
           <thead>
             <tr>
@@ -155,7 +182,7 @@ export function Dashboard() {
             </tr>
           </thead>
           <tbody>
-            {data.sites.slice(0, 12).map((s) => (
+            {dashSiteSlice.map((s) => (
               <tr key={s.id}>
                 <td>
                   <Link to={`/sites/${s.id}`}>{s.siteName}</Link>
@@ -170,7 +197,7 @@ export function Dashboard() {
                 <td>
                   <Badge kind={s.sslStatus} variant="ssl" />
                 </td>
-                <td className={sslExpiryCellClass(s)}>{formatListDate(s.sslValidTo)}</td>
+                <td className={sslExpiryCellClass(s)}>{formatListDate(s.sslValidToFinal ?? s.sslValidTo)}</td>
                 <td className={domainExpiryCellClass(s)}>{formatListDate(s.domainExpiryFinal)}</td>
                 <td className="muted small">
                   {s.lastCheckedAt ? new Date(s.lastCheckedAt).toLocaleString("es-ES") : "—"}
@@ -179,6 +206,14 @@ export function Dashboard() {
             ))}
           </tbody>
         </table>
+        </div>
+        <TablePagination
+          page={dashSitePage}
+          pageSize={DASH_SITES_PAGE_SIZE}
+          total={data.sites.length}
+          onPageChange={setDashSitePage}
+          itemLabel="sitios del panel"
+        />
       </div>
     </div>
   );

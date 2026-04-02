@@ -315,9 +315,25 @@ export function SiteDetail() {
               <dd>{site.sslSubject ?? "—"}</dd>
               <dt>Emisor</dt>
               <dd>{site.sslIssuer ?? "—"}</dd>
-              <dt>Válido hasta</dt>
+              <dt>Válido hasta (chequeo TLS)</dt>
               <dd>
                 {site.sslValidTo ? new Date(site.sslValidTo).toLocaleString("es-ES", esDateTime) : "—"}
+              </dd>
+              <dt>Fecha usada por el sistema</dt>
+              <dd>
+                {site.sslValidToFinal
+                  ? new Date(site.sslValidToFinal).toLocaleString("es-ES", esDateTime)
+                  : "—"}
+              </dd>
+              <dt>Origen fecha SSL</dt>
+              <dd>
+                {site.sslExpirySource === "manual"
+                  ? "Manual (editada en «Editar sitio»)"
+                  : site.sslExpirySource === "auto"
+                    ? "Automática (chequeo TLS)"
+                    : site.sslExpirySource === "unavailable"
+                      ? "Sin detección automática"
+                      : "—"}
               </dd>
               <dt>Número de serie</dt>
               <dd>{site.sslSerialNumber?.trim() || "—"}</dd>
