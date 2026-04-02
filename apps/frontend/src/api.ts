@@ -134,7 +134,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 
 export const api = {
   sites: {
-    list: (q?: Record<string, string>) =>
+    list: (q?: Record<string, string | number | boolean | undefined>) =>
       request<{ items: unknown[]; total: number }>(`/sites${toQuery(q)}`),
     get: (id: string) => request<unknown>(`/sites/${id}`),
     create: (body: unknown) => request<unknown>(`/sites`, { method: "POST", body: JSON.stringify(body) }),

@@ -1336,6 +1336,116 @@ h2 {
   -webkit-overflow-scrolling: touch;
 }
 
+/* Panel: tabla «Estado por sitio» — badges en una sola línea (compactos); texto sitio/fechas envuelve bien */
+.dashboard-page .table-scroll--dashboard-fit {
+  overflow-x: visible;
+}
+.dashboard-page .table-scroll--dashboard-fit .table th,
+.dashboard-page .table-scroll--dashboard-fit .table td {
+  vertical-align: middle;
+}
+.table.table--dashboard-sites {
+  table-layout: fixed;
+  width: 100%;
+}
+.table.table--dashboard-sites th:nth-child(1),
+.table.table--dashboard-sites td:nth-child(1) {
+  width: 20%;
+  min-width: 0;
+  word-break: normal;
+  overflow-wrap: break-word;
+}
+.table.table--dashboard-sites th:nth-child(2),
+.table.table--dashboard-sites td:nth-child(2) {
+  width: 11%;
+}
+.table.table--dashboard-sites th:nth-child(3),
+.table.table--dashboard-sites td:nth-child(3) {
+  width: 12%;
+}
+.table.table--dashboard-sites th:nth-child(4),
+.table.table--dashboard-sites td:nth-child(4) {
+  width: 12%;
+}
+.table.table--dashboard-sites th:nth-child(5),
+.table.table--dashboard-sites td:nth-child(5) {
+  width: 11%;
+}
+.table.table--dashboard-sites th:nth-child(6),
+.table.table--dashboard-sites td:nth-child(6) {
+  width: 11%;
+}
+.table.table--dashboard-sites th:nth-child(7),
+.table.table--dashboard-sites td:nth-child(7) {
+  width: 23%;
+  min-width: 0;
+  word-break: normal;
+  overflow-wrap: break-word;
+}
+/* Columnas de badges: nunca partir palabra; centrado */
+.table.table--dashboard-sites td:nth-child(2),
+.table.table--dashboard-sites td:nth-child(3),
+.table.table--dashboard-sites td:nth-child(4) {
+  white-space: nowrap;
+  text-align: center;
+  word-break: normal;
+  overflow-wrap: normal;
+}
+.table.table--dashboard-sites .badge {
+  white-space: nowrap;
+  font-size: 0.62rem;
+  font-weight: 600;
+  padding: 0.12rem 0.38rem;
+  border-radius: 5px;
+  line-height: 1.15;
+  letter-spacing: 0.01em;
+  max-width: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+/* Pantallas estrechas: ancho mínimo + scroll suave (mejor que letras en columna) */
+@media (max-width: 720px) {
+  .dashboard-page .table-scroll--dashboard-fit:has(.table--dashboard-sites) {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  .table.table--dashboard-sites {
+    min-width: 34rem;
+  }
+}
+.table.table--dashboard-expiry {
+  table-layout: fixed;
+  width: 100%;
+}
+.table.table--dashboard-expiry th:nth-child(1),
+.table.table--dashboard-expiry td:nth-child(1) {
+  width: 26%;
+}
+.table.table--dashboard-expiry th:nth-child(2),
+.table.table--dashboard-expiry td:nth-child(2) {
+  width: 36%;
+}
+.table.table--dashboard-expiry th:nth-child(3),
+.table.table--dashboard-expiry td:nth-child(3) {
+  width: 38%;
+}
+.dashboard-page .table--dashboard-expiry th,
+.dashboard-page .table--dashboard-expiry td {
+  min-width: 0;
+  word-break: break-word;
+  overflow-wrap: break-word;
+  vertical-align: top;
+}
+.table.table--dashboard-sites th:nth-child(2),
+.table.table--dashboard-sites th:nth-child(3),
+.table.table--dashboard-sites th:nth-child(4) {
+  text-align: center;
+}
+.table.table--dashboard-sites th {
+  font-size: 0.68rem;
+}
+
 .site-detail-stats {
   width: 100%;
   box-sizing: border-box;

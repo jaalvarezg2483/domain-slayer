@@ -8,7 +8,12 @@ import { SiteActiveBadge } from "../components/SiteActiveBadge";
 import { TablePagination } from "../components/TablePagination";
 import { buildSitesExpiryProximity, type SiteExpiryProximityRow } from "../lib/expiry-proximity";
 import { expiryLineText } from "../lib/expiry-line-text";
-import { domainExpiryCellClass, formatListDate, sslExpiryCellClass } from "../lib/site-table-dates";
+import {
+  domainExpiryCellClass,
+  formatDashboardLastCheck,
+  formatListDate,
+  sslExpiryCellClass,
+} from "../lib/site-table-dates";
 import type { AlertRow, SiteRow } from "../types";
 
 const DASH_SITES_PAGE_SIZE = 10;
@@ -98,8 +103,8 @@ export function Dashboard() {
               SSL quedan fuera de la ventana de aviso, la alerta desaparece sola. Use «Ver notas» para notas de resolución
               guardadas en el servidor.
             </p>
-            <div className="table-scroll">
-            <table className="table expiry-alert-table">
+            <div className="table-scroll table-scroll--dashboard-fit">
+            <table className="table expiry-alert-table table--dashboard-expiry">
               <thead>
                 <tr>
                   <th>Sitio</th>
@@ -168,8 +173,8 @@ export function Dashboard() {
 
       <div className="card">
         <h2>Estado por sitio</h2>
-        <div className="table-scroll">
-        <table className="table">
+        <div className="table-scroll table-scroll--dashboard-fit">
+        <table className="table table--dashboard-sites">
           <thead>
             <tr>
               <th>Sitio</th>
@@ -182,7 +187,9 @@ export function Dashboard() {
             </tr>
           </thead>
           <tbody>
-            {dashSiteSlice.map((s) => (
+            {dashSiteSlice.map((s) => {
+              const chk = formatDashboardLastCheck(s.lastCheckedAt);
+              return (
               <tr key={s.id}>
                 <td>
                   <Link to={`/sites/${s.id}`}>{s.siteName}</Link>
@@ -199,11 +206,12 @@ export function Dashboard() {
                 </td>
                 <td className={sslExpiryCellClass(s)}>{formatListDate(s.sslValidToFinal ?? s.sslValidTo)}</td>
                 <td className={domainExpiryCellClass(s)}>{formatListDate(s.domainExpiryFinal)}</td>
-                <td className="muted small">
-                  {s.lastCheckedAt ? new Date(s.lastCheckedAt).toLocaleString("es-ES") : "—"}
+                <td className="muted small table-cell--wrap" title={chk.title || undefined}>
+                  {chk.text}
                 </td>
               </tr>
-            ))}
+              );
+            })}
           </tbody>
         </table>
         </div>
