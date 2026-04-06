@@ -1527,7 +1527,7 @@ h2 {
   max-width: 100%;
   box-sizing: border-box;
 }
-/* Pantallas estrechas: ancho mínimo + scroll suave (mejor que letras en columna) */
+/* Pantallas estrechas: ancho mínimo + scroll horizontal (móvil y ventana de escritorio reducida) */
 @media (max-width: 720px) {
   .dashboard-page .table-scroll--dashboard-fit:has(.table--dashboard-sites) {
     overflow-x: auto;
@@ -1535,6 +1535,29 @@ h2 {
   }
   .table.table--dashboard-sites {
     min-width: 38rem;
+  }
+}
+
+/* Alertas de vencimiento: tabla real + scroll (no tarjetas); aplica en móvil y en pantalla reducida */
+@media (max-width: 1100px) {
+  .dashboard-page .table-scroll--dashboard-fit:has(.table--dashboard-expiry) {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  .table.table--dashboard-expiry {
+    min-width: min(32rem, 110vw);
+  }
+  .table.table--dashboard-expiry th:nth-child(1),
+  .table.table--dashboard-expiry td:nth-child(1) {
+    min-width: 9.5rem;
+  }
+  .table.table--dashboard-expiry th:nth-child(2),
+  .table.table--dashboard-expiry td:nth-child(2) {
+    min-width: 12rem;
+  }
+  .table.table--dashboard-expiry th:nth-child(3),
+  .table.table--dashboard-expiry td:nth-child(3) {
+    min-width: 9rem;
   }
 }
 .table.table--dashboard-expiry {
@@ -1560,6 +1583,14 @@ h2 {
   overflow-wrap: break-word;
   vertical-align: top;
 }
+
+.dashboard-expiry-domain {
+  margin-top: 0.15rem;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
 .table.table--dashboard-sites th:nth-child(2),
 .table.table--dashboard-sites th:nth-child(3) {
   text-align: center;
@@ -2449,13 +2480,6 @@ select.input {
 }
 .document-picker-list > li:last-child {
   border-bottom: none;
-}
-
-@media (max-width: 1100px) {
-  .expiry-alert-table {
-    display: block;
-    overflow-x: auto;
-  }
 }
 
 @media (max-width: 900px) {

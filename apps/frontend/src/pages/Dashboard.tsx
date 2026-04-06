@@ -127,7 +127,7 @@ export function Dashboard() {
                     >
                       <td>
                         <Link to={`/sites/${row.site.id}`}>{row.site.siteName}</Link>
-                        <div className="muted small">{row.site.domain}</div>
+                        <div className="muted small dashboard-expiry-domain">{row.site.domain}</div>
                       </td>
                       <td>
                         {row.lines.map((line) => (
