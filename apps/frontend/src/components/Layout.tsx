@@ -3,6 +3,7 @@ import { NavLink, Outlet, useNavigate, useLocation } from "react-router-dom";
 import { hasAuthToken, setAuthToken } from "../api";
 import { useAuthMode } from "../auth-context";
 import { AppBrand } from "./AppBrand";
+import { SessionTransitionOverlay } from "./SessionTransitionOverlay";
 import {
   IconAlerts,
   IconAssistant,
@@ -45,9 +46,26 @@ export function Layout() {
   const { authRequired } = useAuthMode();
   const [showLogout, setShowLogout] = useState(false);
   const [navOpen, setNavOpen] = useState(false);
+  const [sessionSnail, setSessionSnail] = useState<"welcome" | "goodbye" | null>(null);
 
   useEffect(() => {
     setShowLogout(hasAuthToken());
+  }, []);
+
+  /**
+   * Bienvenida tras login: sin `return () => clearTimeout` para que React Strict Mode no cancele el cierre y deje el overlay colgado.
+   */
+  useEffect(() => {
+    try {
+      if (sessionStorage.getItem("ds_snail_welcome") !== "1") return;
+      sessionStorage.removeItem("ds_snail_welcome");
+      setSessionSnail("welcome");
+      window.setTimeout(() => {
+        setSessionSnail((prev) => (prev === "welcome" ? null : prev));
+      }, 1750);
+    } catch {
+      /* sessionStorage no disponible */
+    }
   }, []);
 
   useEffect(() => {
@@ -88,6 +106,7 @@ export function Layout() {
 
   return (
     <div className={`layout-root${navOpen ? " layout-root--nav-open" : ""}`}>
+      {sessionSnail ? <SessionTransitionOverlay open mode={sessionSnail} /> : null}
       <header className="layout-mobile-bar">
         <button
           type="button"
@@ -180,14 +199,20 @@ export function Layout() {
                 <button
                   type="button"
                   className="btn ghost small nav-panel__logout"
+                  disabled={sessionSnail !== null}
+                  aria-busy={sessionSnail === "goodbye"}
                   onClick={() => {
                     closeNav();
-                    setAuthToken(null);
-                    setShowLogout(false);
-                    void nav("/login", { replace: true });
+                    setSessionSnail("goodbye");
+                    window.setTimeout(() => {
+                      setAuthToken(null);
+                      setShowLogout(false);
+                      setSessionSnail(null);
+                      void nav("/login", { replace: true });
+                    }, 1750);
                   }}
                 >
-                  Cerrar sesión
+                  {sessionSnail === "goodbye" ? "Cerrando…" : "Cerrar sesión"}
                 </button>
               </>
             ) : null}

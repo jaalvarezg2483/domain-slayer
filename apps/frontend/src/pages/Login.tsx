@@ -39,11 +39,21 @@ export function Login() {
     try {
       const r = await api.auth.login(email, password);
       if (r.authDisabled) {
+        try {
+          sessionStorage.setItem("ds_snail_welcome", "1");
+        } catch {
+          /* ignorar */
+        }
         nav("/", { replace: true });
         return;
       }
       if (r.token) {
         setAuthToken(r.token);
+        try {
+          sessionStorage.setItem("ds_snail_welcome", "1");
+        } catch {
+          /* ignorar */
+        }
         nav("/", { replace: true });
       }
     } catch (e) {

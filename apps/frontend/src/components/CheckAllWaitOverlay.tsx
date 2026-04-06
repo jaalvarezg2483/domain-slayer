@@ -79,7 +79,7 @@ export function CheckAllWaitOverlay({ open, siteCount }: Props) {
   );
 }
 
-function SnailGlyph({ className }: { className?: string }) {
+export function SnailGlyph({ className }: { className?: string }) {
   return (
     <svg className={className} viewBox="0 0 64 44" width="64" height="44" aria-hidden>
       <circle cx="41" cy="22" r="12.5" fill="#d4c4a8" stroke="#9a8a6e" strokeWidth="1.25" />

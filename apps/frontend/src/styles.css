@@ -2906,3 +2906,39 @@ select.input {
     transform: translateY(0);
   }
 }
+
+/* Entrada / salida de sesión: mismo caracol que chequeo global */
+.session-snail-overlay {
+  z-index: 1200;
+}
+.session-snail-overlay__creep--welcome {
+  animation-duration: 5.5s;
+}
+.session-snail-overlay__creep--goodbye {
+  animation-direction: reverse;
+  animation-duration: 5s;
+}
+.session-snail-overlay--goodbye .checkall-overlay__glow {
+  background: linear-gradient(
+    90deg,
+    rgba(255, 159, 10, 0.2),
+    var(--warn) 36%,
+    #ffd60a 82%,
+    rgba(255, 214, 10, 0.92)
+  );
+  box-shadow:
+    0 0 14px rgba(255, 159, 10, 0.4),
+    0 0 26px rgba(255, 159, 10, 0.18),
+    0 1px 0 rgba(255, 255, 255, 0.28) inset;
+}
+.session-snail-overlay--goodbye .checkall-overlay__shimmer {
+  background: linear-gradient(
+    105deg,
+    transparent 0%,
+    transparent 40%,
+    rgba(255, 159, 10, 0.14) 48%,
+    rgba(255, 214, 10, 0.08) 52%,
+    transparent 60%,
+    transparent 100%
+  );
+}
