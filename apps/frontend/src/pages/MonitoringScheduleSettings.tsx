@@ -76,7 +76,7 @@ export function MonitoringScheduleSettings() {
   const [saving, setSaving] = useState(false);
   const [testing, setTesting] = useState(false);
   const [err, setErr] = useState<string | null>(null);
-  const [testMsg, setTestMsg] = useState<string | null>(null);
+  const [testBanner, setTestBanner] = useState<{ text: string; ok: boolean } | null>(null);
   const [form, setForm] = useState<MonitoringScheduleDto>(emptyForm);
   const [visual, setVisual] = useState<VisualScheduleState>(() => defaultVisualState());
 
@@ -100,7 +100,7 @@ export function MonitoringScheduleSettings() {
 
   const save = async () => {
     setErr(null);
-    setTestMsg(null);
+    setTestBanner(null);
     setSaving(true);
     try {
       let sched: ReturnType<typeof dtoFieldsFromVisual>;
@@ -141,7 +141,7 @@ export function MonitoringScheduleSettings() {
 
   const testNotify = async () => {
     setErr(null);
-    setTestMsg(null);
+    setTestBanner(null);
     if (!form.notifyEmailEnabled && !form.notifyTeamsEnabled) {
       setErr("Marque «Correo» o «Teams» para poder probar notificaciones.");
       return;
@@ -158,7 +158,10 @@ export function MonitoringScheduleSettings() {
       if (form.notifyEmailEnabled) parts.push(r.emailSent ? "Correo: enviado" : "Correo: no enviado");
       if (form.notifyTeamsEnabled) parts.push(r.teamsSent ? "Teams: enviado" : "Teams: no enviado");
       if (r.errors?.length) parts.push(...r.errors);
-      setTestMsg(parts.join(" · "));
+      const emailOk = !form.notifyEmailEnabled || Boolean(r.emailSent);
+      const teamsOk = !form.notifyTeamsEnabled || Boolean(r.teamsSent);
+      const ok = emailOk && teamsOk && !(r.errors?.length);
+      setTestBanner({ text: parts.join(" · "), ok });
     } catch (e) {
       setErr((e as Error).message);
     } finally {
@@ -201,16 +204,29 @@ export function MonitoringScheduleSettings() {
         >
           <strong style={{ color: "var(--text)" }}>Correo en el servidor</strong>
           <p className="small" style={{ margin: "0.5rem 0 0" }}>
-            Este entorno no tiene <code>SMTP_HOST</code> configurado en el proceso del backend. En desarrollo suele venir del archivo{" "}
-            <code>.env</code>; en producción hay que definir <code>SMTP_HOST</code>, <code>SMTP_PORT</code>,{" "}
-            <code>SMTP_USER</code>, <code>SMTP_PASS</code> y <code>SMTP_FROM</code> en las variables del servicio (p. ej. Railway →
-            Variables) y redeploy. Hasta entonces «Probar» correo y los avisos programados por email no funcionarán.
+            El API que atiende esta página <strong>no</strong> ve la variable <code>SMTP_HOST</code> (por eso «Probar» no puede enviar
+            correo). En local suele estar en <code>.env</code> en la raíz o en <code>apps/backend</code>; en Railway u otro PaaS hay que
+            poner las variables en el <strong>servicio que ejecuta el backend Node</strong> (API), no solo en el build del frontend ni en
+            otro contenedor. Nombres exactos y en mayúsculas: <code>SMTP_HOST</code>, <code>SMTP_PORT</code>, <code>SMTP_SECURE</code>{" "}
+            (p. ej. <code>false</code> con puerto 587), <code>SMTP_USER</code>, <code>SMTP_PASS</code>, <code>SMTP_FROM</code>. Guarde en
+            el panel, lance un <strong>nuevo deploy</strong> del servicio API y recargue esta página: el aviso debería desaparecer si el
+            proceso ya recibe <code>SMTP_HOST</code>.
           </p>
         </div>
       )}
 
       {err && <div className="card error">{err}</div>}
-      {testMsg && !err && <div className="card" style={{ borderColor: "rgba(52, 199, 89, 0.35)" }}>{testMsg}</div>}
+      {testBanner && !err && (
+        <div
+          className="card"
+          style={{
+            borderColor: testBanner.ok ? "rgba(52, 199, 89, 0.35)" : "rgba(255, 159, 10, 0.45)",
+            color: testBanner.ok ? undefined : "var(--text-muted)",
+          }}
+        >
+          {testBanner.text}
+        </div>
+      )}
 
       <div className="row gap monitoring-schedule-actions" aria-label="Guardar o probar programación">
         <button
@@ -517,7 +533,9 @@ export function MonitoringScheduleSettings() {
             value={form.notifyOn}
             onChange={(e) => setForm({ ...form, notifyOn: e.target.value as "always" | "alerts_only" })}
           >
-            <option value="alerts_only">Solo si hay alertas abiertas tras el chequeo</option>
+            <option value="alerts_only">
+              Solo si hay alertas abiertas o sitios en ventana de vencimiento del panel (si no, no se envía nada)
+            </option>
             <option value="always">Siempre tras cada chequeo programado</option>
           </select>
         </label>

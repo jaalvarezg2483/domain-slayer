@@ -376,6 +376,9 @@ export async function sendScheduleNotifications(
   const { expiryRows, opsOnlyRows } = buildExpiryEmailRowsFromSites(sites, items);
 
   if (settings.notifyOn === "alerts_only" && openTotal === 0 && expiryRows.length === 0) {
+    console.info(
+      "[schedule-notify] Aviso omitido (correo y Teams): notifyOn=alerts_only y no hay alertas abiertas ni sitios en ventana de vencimiento del panel.",
+    );
     return { emailSent: false, teamsSent: false, skipped: true };
   }
   const logoPath = resolvePurdyLogoPath();
