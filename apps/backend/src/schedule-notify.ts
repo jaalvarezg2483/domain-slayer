@@ -522,7 +522,10 @@ export async function sendTestNotifications(
     if (recipients.length === 0) {
       errors.push("Para probar correo, indique al menos un destinatario.");
     } else if (!transport) {
-      errors.push("SMTP no configurado (SMTP_HOST en el servidor).");
+      errors.push(
+        "SMTP no configurado (falta SMTP_HOST en el proceso del servidor). En producción defina las mismas variables que en .env local " +
+          "(SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS, SMTP_FROM) en el panel de su proveedor (p. ej. Railway → Variables) y vuelva a desplegar.",
+      );
     } else {
       try {
         const testPayload: PurdyEmailBuildInput = {

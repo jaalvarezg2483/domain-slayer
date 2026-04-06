@@ -51,6 +51,8 @@ export type MonitoringScheduleDto = {
   proximityRunHour: number;
   lastProximityDailyRunAt: string | null;
   updatedAt: string;
+  /** Solo lectura (API): el servidor tiene SMTP_HOST; si es false, en producción faltan variables de entorno. */
+  smtpConfigured?: boolean;
 };
 
 const BACKEND_HINT =

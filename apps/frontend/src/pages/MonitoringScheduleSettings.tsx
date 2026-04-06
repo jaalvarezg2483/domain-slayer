@@ -190,6 +190,25 @@ export function MonitoringScheduleSettings() {
         Elija días y hora según le convenga. Más abajo puede indicar si desea recibir avisos por correo o por Teams.
       </p>
 
+      {form.smtpConfigured === false && (
+        <div
+          className="card"
+          role="status"
+          style={{
+            borderColor: "rgba(255, 159, 10, 0.45)",
+            color: "var(--text-muted)",
+          }}
+        >
+          <strong style={{ color: "var(--text)" }}>Correo en el servidor</strong>
+          <p className="small" style={{ margin: "0.5rem 0 0" }}>
+            Este entorno no tiene <code>SMTP_HOST</code> configurado en el proceso del backend. En desarrollo suele venir del archivo{" "}
+            <code>.env</code>; en producción hay que definir <code>SMTP_HOST</code>, <code>SMTP_PORT</code>,{" "}
+            <code>SMTP_USER</code>, <code>SMTP_PASS</code> y <code>SMTP_FROM</code> en las variables del servicio (p. ej. Railway →
+            Variables) y redeploy. Hasta entonces «Probar» correo y los avisos programados por email no funcionarán.
+          </p>
+        </div>
+      )}
+
       {err && <div className="card error">{err}</div>}
       {testMsg && !err && <div className="card" style={{ borderColor: "rgba(52, 199, 89, 0.35)" }}>{testMsg}</div>}
 
