@@ -9,6 +9,7 @@ import { SiteDetail } from "./pages/SiteDetail";
 import { Alerts } from "./pages/Alerts";
 import { Library } from "./pages/Library";
 import { MonitoringScheduleSettings } from "./pages/MonitoringScheduleSettings";
+import { Reports } from "./pages/Reports";
 import { UsersSettings } from "./pages/UsersSettings";
 import { LibraryAssistant } from "./pages/LibraryAssistant";
 
@@ -28,6 +29,7 @@ export function App() {
         <Route path="library" element={<Library />} />
         <Route path="assistant" element={<LibraryAssistant />} />
         <Route path="sites" element={<SiteList />} />
+        <Route path="reports" element={<Reports />} />
         <Route path="sites/new" element={<SiteForm />} />
         <Route path="sites/:id/edit" element={<SiteForm />} />
         <Route path="sites/:id" element={<SiteDetail />} />

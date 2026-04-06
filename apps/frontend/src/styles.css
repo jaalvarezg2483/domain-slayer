@@ -1657,6 +1657,49 @@ h2 {
 .text-bad {
   color: var(--bad);
 }
+.text-ok {
+  color: var(--ok);
+}
+
+/* Reportes (gráficos) */
+.reports-page__head {
+  align-items: flex-start;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+.reports-grid {
+  display: grid;
+  gap: 1.25rem;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 20rem), 1fr));
+}
+@media (min-width: 1100px) {
+  .reports-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+.report-chart-card__title {
+  margin: 0 0 0.35rem;
+  font-size: 1.05rem;
+  font-weight: 650;
+}
+.report-chart-card__sub {
+  margin: 0 0 0.75rem;
+  line-height: 1.4;
+}
+.report-chart-card__body {
+  min-height: 2rem;
+}
+.report-chart-card__empty {
+  margin: 2rem 0;
+  text-align: center;
+}
+.recharts-cartesian-grid-horizontal line,
+.recharts-cartesian-grid-vertical line {
+  opacity: 0.35;
+}
+.recharts-legend-item-text {
+  color: var(--text) !important;
+}
 .text-warn-strong {
   color: var(--warn);
   font-weight: 600;

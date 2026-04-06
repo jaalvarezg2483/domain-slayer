@@ -50,6 +50,31 @@ function normalizeUploadedOriginalName(name: string): string {
   }
 }
 
+/** Tras `path.resolve`, comprueba que `candidate` queda bajo `root` (subcarpeta o igual). */
+function filePathIsUnderRoot(root: string, candidate: string): boolean {
+  const r = path.resolve(root);
+  const c = path.resolve(candidate);
+  if (c === r) return true;
+  const rel = path.relative(r, c);
+  return rel !== "" && !rel.startsWith("..") && !path.isAbsolute(rel);
+}
+
+/** Rutas guardadas en BD suelen ser relativas al cwd en el momento de la subida (p. ej. `data/uploads/...` o `../../data/...` si UPLOAD_DIR está fuera del cwd). */
+function resolveStoredPath(relativeOrAbs: string, cwd: string): string {
+  const raw = (relativeOrAbs ?? "").trim();
+  if (!raw) return "";
+  const norm = raw.replace(/\\/g, "/");
+  return path.isAbsolute(raw) ? path.normalize(raw) : path.resolve(cwd, norm);
+}
+
+/** Cabecera `Content-Disposition` con nombre legible (UTF-8) para el navegador. */
+function buildContentDispositionAttachment(fileName: string): string {
+  const base = path.basename(fileName || "document").replace(/[\r\n"]/g, "_");
+  const ascii = /^[\x20-\x7E]+$/.test(base) ? base : "document";
+  const escaped = ascii.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
+  return `attachment; filename="${escaped}"; filename*=UTF-8''${encodeURIComponent(base)}`;
+}
+
 const ALLOWED_DOC_TYPES = new Set([
   "technical_manual",
   "provider_data",
@@ -86,6 +111,8 @@ export function createApiRouter(broker: ServiceBroker, options?: ApiRouterOption
   const uploadDir =
     options?.uploadDir ?? path.join(process.cwd(), "data", "uploads", "documents");
   fs.mkdirSync(uploadDir, { recursive: true });
+  const uploadRootResolved = path.resolve(uploadDir);
+  const cwdResolved = path.resolve(process.cwd());
 
   const storage = multer.diskStorage({
     destination: (_req, _file, cb) => cb(null, uploadDir),
@@ -437,6 +464,49 @@ export function createApiRouter(broker: ServiceBroker, options?: ApiRouterOption
     }
   });
 
+  r.get("/documents/:id/download", async (req, res, next) => {
+    try {
+      const id = String(req.params.id ?? "").trim();
+      if (!id) {
+        res.status(400).json({ error: "Indique el documento." });
+        return;
+      }
+      const doc = (await broker.call("documents.docs.get", { id })) as {
+        filePath?: string | null;
+        fileName?: string | null;
+        mimeType?: string | null;
+      };
+      const fp = doc.filePath?.trim();
+      if (!fp) {
+        res.status(404).json({ error: "Este documento no tiene archivo asociado en el servidor." });
+        return;
+      }
+      const normalized = resolveStoredPath(fp, process.cwd());
+      if (
+        !normalized ||
+        (!filePathIsUnderRoot(cwdResolved, normalized) && !filePathIsUnderRoot(uploadRootResolved, normalized))
+      ) {
+        res.status(403).end();
+        return;
+      }
+      try {
+        await fs.promises.access(normalized, fs.constants.R_OK);
+      } catch {
+        res.status(404).json({ error: "El archivo ya no está en el servidor (p. ej. disco efímero sin volumen)." });
+        return;
+      }
+      const downloadName = (doc.fileName && doc.fileName.trim()) || path.basename(normalized);
+      res.setHeader("Content-Disposition", buildContentDispositionAttachment(downloadName));
+      res.setHeader("Content-Type", doc.mimeType?.trim() || "application/octet-stream");
+      res.setHeader("Cache-Control", "private, no-store");
+      res.sendFile(normalized, (err) => {
+        if (err) next(err);
+      });
+    } catch (e) {
+      next(e);
+    }
+  });
+
   r.get("/documents/:id/embedded-media/:fileName", async (req, res, next) => {
     try {
       const id = String(req.params.id ?? "").trim();
@@ -458,17 +528,11 @@ export function createApiRouter(broker: ServiceBroker, options?: ApiRouterOption
         res.status(404).end();
         return;
       }
-      const abs = path.isAbsolute(item.relativePath)
-        ? item.relativePath
-        : path.join(process.cwd(), item.relativePath);
-      const normalized = path.normalize(abs);
-      const cwd = path.resolve(process.cwd());
-      if (!normalized.startsWith(cwd)) {
-        res.status(403).end();
-        return;
-      }
-      const rel = path.relative(cwd, normalized);
-      if (rel.startsWith("..") || path.isAbsolute(rel)) {
+      const normalized = resolveStoredPath(item.relativePath, process.cwd());
+      if (
+        !normalized ||
+        (!filePathIsUnderRoot(cwdResolved, normalized) && !filePathIsUnderRoot(uploadRootResolved, normalized))
+      ) {
         res.status(403).end();
         return;
       }
@@ -491,16 +555,24 @@ export function createApiRouter(broker: ServiceBroker, options?: ApiRouterOption
       await broker.call("documents.docs.delete", { id: req.params.id });
       const fp = doc.filePath;
       if (fp && typeof fp === "string" && fp.trim()) {
-        const abs = path.isAbsolute(fp) ? fp : path.join(process.cwd(), fp);
-        await fs.promises.unlink(abs).catch(() => {});
+        const abs = resolveStoredPath(fp, process.cwd());
+        if (
+          abs &&
+          (filePathIsUnderRoot(cwdResolved, abs) || filePathIsUnderRoot(uploadRootResolved, abs))
+        ) {
+          await fs.promises.unlink(abs).catch(() => {});
+        }
       }
       const media = doc.embeddedMedia ?? [];
       if (media.length > 0) {
-        const firstAbs = path.isAbsolute(media[0].relativePath)
-          ? media[0].relativePath
-          : path.join(process.cwd(), media[0].relativePath);
-        const mediaDir = path.dirname(firstAbs);
-        await fs.promises.rm(mediaDir, { recursive: true, force: true }).catch(() => {});
+        const firstAbs = resolveStoredPath(media[0].relativePath, process.cwd());
+        if (
+          firstAbs &&
+          (filePathIsUnderRoot(cwdResolved, firstAbs) || filePathIsUnderRoot(uploadRootResolved, firstAbs))
+        ) {
+          const mediaDir = path.dirname(firstAbs);
+          await fs.promises.rm(mediaDir, { recursive: true, force: true }).catch(() => {});
+        }
       }
       res.status(204).end();
     } catch (e) {

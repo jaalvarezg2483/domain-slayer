@@ -10,6 +10,7 @@ import {
   IconDashboard,
   IconLibrary,
   IconPlusSite,
+  IconReports,
   IconSites,
   IconUsers,
 } from "./NavIcons";
@@ -126,6 +127,12 @@ export function Layout() {
                 <IconSites />
               </span>
               <span className="nav-link__text">Sitios</span>
+            </NavLink>
+            <NavLink className={navClass} to="/reports" onClick={closeNav}>
+              <span className="nav-link__icon">
+                <IconReports />
+              </span>
+              <span className="nav-link__text">Reportes</span>
             </NavLink>
             <NavLink className={navClass} to="/library" onClick={closeNav}>
               <span className="nav-link__icon">

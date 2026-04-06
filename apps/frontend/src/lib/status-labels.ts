@@ -100,6 +100,22 @@ export function labelEnvironment(env: string): string {
   return m[env] ?? env;
 }
 
+const alertType: Record<string, string> = {
+  ssl_expiring: "SSL por vencer",
+  ssl_expired: "SSL vencido",
+  ssl_error: "Error SSL/TLS",
+  domain_expiring: "Dominio por vencer",
+  domain_unknown_expiry: "Dominio sin fecha",
+  domain_registry_differs_from_manual: "Registro distinto al manual",
+  dns_error: "Error DNS",
+  http_error: "Error HTTP",
+  https_error: "Error HTTPS",
+};
+
+export function labelAlertType(kind: string): string {
+  return alertType[kind] ?? kind;
+}
+
 /** Compara host del sitio vs CN del certificado (sin www) para detectar errores de tipeo en el dominio. */
 function hostForMismatchCheck(host: string): string {
   const h = host.trim().toLowerCase();

@@ -23,6 +23,18 @@ export function IconDashboard() {
   );
 }
 
+/** Reportes / gráficos */
+export function IconReports() {
+  return (
+    <svg {...iconProps}>
+      <path d="M4 19h16" opacity={0.85} />
+      <rect x="5" y="11" width="3.5" height="7" rx="1" />
+      <rect x="10.25" y="7" width="3.5" height="11" rx="1" />
+      <rect x="15.5" y="14" width="3.5" height="4" rx="1" />
+    </svg>
+  );
+}
+
 export function IconSites() {
   return (
     <svg {...iconProps}>

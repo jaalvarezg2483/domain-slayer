@@ -95,6 +95,7 @@ export function Library() {
   const [libLoading, setLibLoading] = useState(false);
   const [libErr, setLibErr] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [downloadingId, setDownloadingId] = useState<string | null>(null);
   const [docPendingDelete, setDocPendingDelete] = useState<LibraryDocRow | null>(null);
 
   const loadLibraryList = () => {
@@ -171,6 +172,20 @@ export function Library() {
       setUploadErr((e as Error).message);
     } finally {
       setUploadBusy(false);
+    }
+  };
+
+  const downloadDocument = async (d: LibraryDocRow) => {
+    setLibErr(null);
+    setDownloadingId(d.id);
+    try {
+      const safeTitle = d.title.replace(/[/\\?%*:|"<>]/g, "_").trim() || "documento";
+      const fallback = displayFileName(d.fileName) || `${safeTitle}.bin`;
+      await api.documents.downloadFile(d.id, fallback);
+    } catch (e) {
+      setLibErr((e as Error).message);
+    } finally {
+      setDownloadingId(null);
     }
   };
 
@@ -319,7 +334,8 @@ export function Library() {
           </button>
         </div>
         <p className="muted small" style={{ marginTop: 0 }}>
-          Revise versiones y elimine los que estén desactualizados. La búsqueda y el asistente dejarán de usarlos de
+          Use <strong>Descargar</strong> para guardar el archivo original en su equipo (mismo PDF, Word o Excel que subió).
+          Revise versiones y elimine los que estén desactualizados; la búsqueda y el asistente dejarán de usarlos de
           inmediato.
         </p>
         {libErr && <div className="card error" style={{ marginTop: "0.5rem" }}>{libErr}</div>}
@@ -375,14 +391,24 @@ export function Library() {
                         : "—"}
                     </td>
                     <td>
-                      <button
-                        type="button"
-                        className="btn small danger"
-                        disabled={deletingId === d.id}
-                        onClick={() => setDocPendingDelete(d)}
-                      >
-                        {deletingId === d.id ? "…" : "Eliminar"}
-                      </button>
+                      <div className="row gap wrap" style={{ justifyContent: "flex-end" }}>
+                        <button
+                          type="button"
+                          className="btn small ghost"
+                          disabled={downloadingId === d.id || deletingId === d.id}
+                          onClick={() => void downloadDocument(d)}
+                        >
+                          {downloadingId === d.id ? "…" : "Descargar"}
+                        </button>
+                        <button
+                          type="button"
+                          className="btn small danger"
+                          disabled={deletingId === d.id || downloadingId === d.id}
+                          onClick={() => setDocPendingDelete(d)}
+                        >
+                          {deletingId === d.id ? "…" : "Eliminar"}
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}

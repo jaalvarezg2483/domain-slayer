@@ -78,6 +78,23 @@ export function authHeaders(): Record<string, string> {
   return t ? { Authorization: `Bearer ${t}` } : {};
 }
 
+function parseContentDispositionFileName(cd: string | null): string | null {
+  if (!cd) return null;
+  const star = /filename\*=(?:UTF-8''|utf-8'')([^;]+)/i.exec(cd);
+  if (star) {
+    try {
+      return decodeURIComponent(star[1].trim().replace(/^"+|"+$/g, ""));
+    } catch {
+      /* continuar */
+    }
+  }
+  const quoted = /filename="((?:\\.|[^"\\])*)"/i.exec(cd);
+  if (quoted) return quoted[1].replace(/\\"/g, '"');
+  const plain = /filename=([^;]+)/i.exec(cd);
+  if (plain) return plain[1].trim().replace(/^["']|["']$/g, "");
+  return null;
+}
+
 function redirectLoginIfUnauthorized(): void {
   if (typeof window === "undefined") return;
   setAuthToken(null);
@@ -205,6 +222,40 @@ export const api = {
       }
       return res.json() as Promise<Record<string, unknown> & { extractionNote?: string }>;
     },
+    /** Descarga el archivo original (PDF, Office, etc.) con la sesión actual. */
+    downloadFile: async (id: string, fallbackFileName: string) => {
+      let res: Response;
+      try {
+        res = await fetch(`${apiBase()}/documents/${encodeURIComponent(id)}/download`, {
+          headers: authHeaders(),
+        });
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : String(e);
+        if (msg.includes("Failed to fetch") || msg.includes("NetworkError") || msg.includes("Load failed")) {
+          throw new Error(`Sin conexión al API (${apiBase()}). ${BACKEND_HINT}`);
+        }
+        throw e;
+      }
+      if (res.status === 401) {
+        redirectLoginIfUnauthorized();
+        throw new Error("Sesión no válida o expirada. Vuelva a iniciar sesión.");
+      }
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: res.statusText }) as { error?: string });
+        throw new Error(err.error?.trim() || `No se pudo descargar (${res.status}).`);
+      }
+      const name = parseContentDispositionFileName(res.headers.get("Content-Disposition")) || fallbackFileName;
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = name;
+      a.rel = "noopener";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    },
     search: (
       q: string,
       opts?: { limit?: number; offset?: number; match?: "all" | "any"; ai?: boolean }
@@ -227,7 +278,7 @@ export const api = {
       ),
   },
   alerts: {
-    list: (q?: Record<string, string>) =>
+    list: (q?: Record<string, string | number | boolean | undefined>) =>
       request<{ items: unknown[]; total: number }>(`/alerts${toQuery(q)}`),
     read: (id: string) => request<{ ok: boolean }>(`/alerts/${id}/read`, { method: "POST" }),
     resolve: (id: string) => request<{ ok: boolean }>(`/alerts/${id}/resolve`, { method: "POST" }),
