@@ -11,6 +11,16 @@ import {
   type ProximityRecoveryNotifierItem,
 } from "./schedule-notify.js";
 
+function serverTimeFields() {
+  const now = new Date();
+  return {
+    serverTimeIso: now.toISOString(),
+    /** Reloj del proceso (en Railway suele ser UTC salvo que defina TZ). */
+    serverTimeLocal: now.toString(),
+    tz: process.env.TZ?.trim() || "(no TZ; típico UTC en contenedor)",
+  };
+}
+
 export function createMonitoringScheduler(broker: ServiceBroker, ds: DataSource, log: Logger) {
   const repo = new SqlMonitoringScheduleRepository(ds.manager);
   const tasks: cron.ScheduledTask[] = [];
@@ -28,6 +38,21 @@ export function createMonitoringScheduler(broker: ServiceBroker, ds: DataSource,
     if (source === "cron" && row.scheduleMode !== "cron") return;
     if (source === "interval" && row.scheduleMode !== "interval") return;
 
+    const t0 = Date.now();
+    log.info(
+      {
+        event: "scheduled_full_check_start",
+        source,
+        ...serverTimeFields(),
+        scheduleMode: row.scheduleMode,
+        cronExpression: row.scheduleMode === "cron" ? (row.cronExpression ?? "").trim() : undefined,
+        intervalDays: row.scheduleMode === "interval" ? row.intervalDays : undefined,
+        runHour: row.scheduleMode === "interval" ? row.runHour : undefined,
+        runMinute: row.scheduleMode === "interval" ? row.runMinute : undefined,
+      },
+      "[PROGRAMADO] Inicio: chequeo completo de sitios activos (SSL, DNS, HTTP…)"
+    );
+
     try {
       const out = (await broker.call("monitoring.check.runAll")) as { count?: number };
       const sitesChecked = typeof out?.count === "number" ? out.count : 0;
@@ -37,11 +62,25 @@ export function createMonitoringScheduler(broker: ServiceBroker, ds: DataSource,
         sitesChecked,
         reason: source === "cron" ? "Programación cron" : `Cada ${row.intervalDays ?? 15} día(s)`,
       });
-      log.info({ sitesChecked, source }, "Chequeo programado terminado");
+      log.info(
+        {
+          event: "scheduled_full_check_done",
+          source,
+          sitesChecked,
+          durationMs: Date.now() - t0,
+          ...serverTimeFields(),
+        },
+        "[PROGRAMADO] Fin: chequeo completo terminado (revisión y notificaciones según ajustes)"
+      );
     } catch (e) {
       log.error(
-        { err: e instanceof Error ? e.message : String(e) },
-        "Chequeo programado falló"
+        {
+          err: e instanceof Error ? e.message : String(e),
+          source,
+          durationMs: Date.now() - t0,
+          ...serverTimeFields(),
+        },
+        "[PROGRAMADO] Error: chequeo completo falló"
       );
     }
   }
@@ -64,6 +103,16 @@ export function createMonitoringScheduler(broker: ServiceBroker, ds: DataSource,
     if (!row.proximityDailyEnabled) return;
 
     const now = new Date();
+    const t0 = Date.now();
+    log.info(
+      {
+        event: "proximity_daily_start",
+        configuredHour: row.proximityRunHour,
+        ...serverTimeFields(),
+      },
+      "[PROGRAMADO] Inicio: chequeo diario solo sitios en ventana de proximidad (panel)"
+    );
+
     try {
       const siteList = (await broker.call("inventory.sites.list", {
         isActive: true,
@@ -133,13 +182,23 @@ export function createMonitoringScheduler(broker: ServiceBroker, ds: DataSource,
       }
 
       log.info(
-        { checked: targets.length, recovered: recovered.length },
-        "Chequeo diario (próximos a vencer) terminado"
+        {
+          event: "proximity_daily_done",
+          checked: targets.length,
+          recovered: recovered.length,
+          durationMs: Date.now() - t0,
+          ...serverTimeFields(),
+        },
+        "[PROGRAMADO] Fin: chequeo diario de proximidad terminado"
       );
     } catch (e) {
       log.error(
-        { err: e instanceof Error ? e.message : String(e) },
-        "Chequeo diario (próximos a vencer) falló"
+        {
+          err: e instanceof Error ? e.message : String(e),
+          durationMs: Date.now() - t0,
+          ...serverTimeFields(),
+        },
+        "[PROGRAMADO] Error: chequeo diario de proximidad falló"
       );
     }
   }
@@ -166,17 +225,49 @@ export function createMonitoringScheduler(broker: ServiceBroker, ds: DataSource,
                   if (cur.cronAlternateWeeks) {
                     const w = getISOWeekLocal(new Date());
                     const parity = cur.isoWeekParity === 1 ? 1 : 0;
-                    if (w % 2 !== parity) return;
+                    if (w % 2 !== parity) {
+                      log.info(
+                        {
+                          event: "scheduled_full_check_skipped",
+                          reason: "bisemanal_paridad_iso",
+                          isoWeek: w,
+                          expectedParityEven0Odd1: parity,
+                          ...serverTimeFields(),
+                        },
+                        "[PROGRAMADO] Chequeo completo omitido: bisemanal, esta semana ISO no toca"
+                      );
+                      return;
+                    }
                   }
                   if (cur.cronFirstWeekOnly) {
                     const dom = new Date().getDate();
-                    if (dom < 1 || dom > 7) return;
+                    if (dom < 1 || dom > 7) {
+                      log.info(
+                        {
+                          event: "scheduled_full_check_skipped",
+                          reason: "solo_primeros_7_dias_mes",
+                          dayOfMonth: dom,
+                          ...serverTimeFields(),
+                        },
+                        "[PROGRAMADO] Chequeo completo omitido: solo días 1–7 del mes"
+                      );
+                      return;
+                    }
                   }
                   await executeRun("cron");
                 })();
               })
             );
-            log.info({ expr, biweeklyIso: Boolean(row.cronAlternateWeeks) }, "Chequeo automático activo (cron)");
+            log.info(
+              {
+                expr,
+                biweeklyIso: Boolean(row.cronAlternateWeeks),
+                cronFirstWeekOnly: Boolean(row.cronFirstWeekOnly),
+                ...serverTimeFields(),
+                hint: "La hora del cron es la del reloj del servidor (Railway: suele ser UTC salvo TZ).",
+              },
+              "Chequeo automático activo (cron): verá [PROGRAMADO] en logs al dispararse"
+            );
           }
         } else {
           const h = Math.min(23, Math.max(0, row.runHour ?? 6));
@@ -186,7 +277,16 @@ export function createMonitoringScheduler(broker: ServiceBroker, ds: DataSource,
               void onIntervalTick();
             })
           );
-          log.info({ runHour: h, intervalDays: row.intervalDays }, "Chequeo automático activo (cada N días)");
+          log.info(
+            {
+              runHour: h,
+              runMinute: m,
+              intervalDays: row.intervalDays,
+              ...serverTimeFields(),
+              hint: "Cada día a la hora indicada se evalúa si ya pasaron N días desde el último chequeo.",
+            },
+            "Chequeo automático activo (cada N días): verá [PROGRAMADO] al ejecutarse"
+          );
         }
       }
 
@@ -201,7 +301,15 @@ export function createMonitoringScheduler(broker: ServiceBroker, ds: DataSource,
             })();
           })
         );
-        log.info({ proximityRunHour: ph }, "Chequeo diario (solo próximos a vencer) activo");
+        log.info(
+          {
+            proximityRunHour: ph,
+            cronMinute: 0,
+            ...serverTimeFields(),
+            hint: "Todos los días a las HH:00 del servidor (p. ej. 8 = 08:00).",
+          },
+          "Chequeo diario proximidad activo: verá [PROGRAMADO] al ejecutarse cada día"
+        );
       }
     })();
   }

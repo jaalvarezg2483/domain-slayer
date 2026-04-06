@@ -195,9 +195,27 @@ export type PurdySiteEmailRow = {
   dashboardExpiryLines?: { text: string; urgency: "red" | "orange"; days: number }[];
 };
 
+/** Igual que el panel: sitios en ventana con peor urgencia roja (&lt;5 días o vencido) vs solo naranja (5–10 días). */
+export function countExpiryPanelBuckets(expiryRows: PurdySiteEmailRow[]): {
+  lessThan5Days: number;
+  fiveTo10Days: number;
+} {
+  let lessThan5Days = 0;
+  let fiveTo10Days = 0;
+  for (const r of expiryRows) {
+    const lines = r.dashboardExpiryLines;
+    if (!lines?.length) continue;
+    if (lines.some((l) => l.urgency === "red")) lessThan5Days++;
+    else fiveTo10Days++;
+  }
+  return { lessThan5Days, fiveTo10Days };
+}
+
 export type PurdyEmailBuildInput = {
   mode: "schedule" | "test";
   sitesChecked: number;
+  /** Sitios activos en inventario (tarjeta «Sitios activos» del panel). Si falta, se usa sitesChecked. */
+  activeSitesCount?: number;
   reason: string;
   critical: number;
   warning: number;
@@ -205,6 +223,11 @@ export type PurdyEmailBuildInput = {
   expiryRows: PurdySiteEmailRow[];
   opsOnlyRows: PurdySiteEmailRow[];
   useLogoCid: boolean;
+  /**
+   * Si true, aplica filter:invert al PNG incrustado (logo oscuro → claro en correo).
+   * Desactivar cuando el archivo ya es negro sobre blanco (p. ej. grupo-purdy-logo-notify.png).
+   */
+  invertEmailLogo?: boolean;
   publicAppUrl?: string | null;
   /** Marca de tiempo del run programado (servidor) para comprobar que el automatismo corrió. */
   lastRunAt?: Date | string | null;
@@ -257,81 +280,80 @@ export function sortExpiryRowsByPanelUrgency(rows: PurdySiteEmailRow[]): PurdySi
 function severityBadge(sev: string): string {
   const bg =
     sev === "critical"
-      ? "#3d1515"
+      ? "#ffebee"
       : sev === "warning"
-        ? "#3d3010"
-        : "#152a35";
-  const fg =
-    sev === "critical" ? "#ffb4b0" : sev === "warning" ? "#ffd78a" : "#a8d4e8";
+        ? "#fff3e0"
+        : "#eceff1";
+  const fg = sev === "critical" ? "#b71c1c" : sev === "warning" ? "#e65100" : "#000000";
   const label =
     sev === "critical" ? "crítica" : sev === "warning" ? "advertencia" : sev === "info" ? "info" : sev;
-  return `<span style="display:inline-block;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:600;background:${bg};color:${fg};">${escapeHtml(label)}</span>`;
-}
-
-function otherAlertsHtml(alerts: Alert[]): string {
-  const rest = alerts.filter((a) => !isSslFamily(a.alertType) && !isDomainFamily(a.alertType));
-  if (rest.length === 0) return "";
-  const lines = rest.map(
-    (a) =>
-      `<span style="font-size:12px;color:#b8c5d4;">• ${escapeHtml(alertTypeLabel(a.alertType))}: ${escapeHtml(a.message)}</span>`
-  );
-  return `<tr><td colspan="5" style="padding:8px 12px 14px 12px;background:#0d1218;border-top:1px solid #243044;font-family:system-ui,-apple-system,sans-serif;">${lines.join("<br/>")}</td></tr>`;
+  return `<span style="display:inline-block;padding:3px 10px;border-radius:999px;font-size:11px;font-weight:700;background:${bg};color:${fg};border:1px solid rgba(0,0,0,0.08);">${escapeHtml(label)}</span>`;
 }
 
 function buildExpirySectionHtml(expiryRows: PurdySiteEmailRow[]): string {
   if (expiryRows.length === 0) return "";
+  const th =
+    "padding:14px 8px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#1a1a1a;border-bottom:2px solid #d0d0d0;font-family:system-ui,-apple-system,sans-serif;text-align:center;vertical-align:middle;";
   const headerCells = `
-      <tr style="background:#0d1520;">
-        <th align="left" style="padding:10px 10px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;color:#7a8fa3;border-bottom:1px solid #2a3544;font-family:system-ui,-apple-system,sans-serif;">Sitio</th>
-        <th align="left" style="padding:10px 10px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;color:#7a8fa3;border-bottom:1px solid #2a3544;font-family:system-ui,-apple-system,sans-serif;">SSL vence</th>
-        <th align="left" style="padding:10px 10px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;color:#7a8fa3;border-bottom:1px solid #2a3544;font-family:system-ui,-apple-system,sans-serif;">Cómo resolver (SSL)</th>
-        <th align="left" style="padding:10px 10px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;color:#7a8fa3;border-bottom:1px solid #2a3544;font-family:system-ui,-apple-system,sans-serif;">Dominio vence</th>
-        <th align="left" style="padding:10px 10px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;color:#7a8fa3;border-bottom:1px solid #2a3544;font-family:system-ui,-apple-system,sans-serif;">Cómo resolver (dominio)</th>
+      <tr style="background:#eceff1;">
+        <th style="${th}">Sitio</th>
+        <th style="${th}">SSL vence</th>
+        <th style="${th}">Cómo resolver (SSL)</th>
+        <th style="${th}">Dominio vence</th>
+        <th style="${th}">Cómo resolver (dominio)</th>
       </tr>`;
 
   const dataRows = expiryRows
-    .map((r) => {
+    .map((r, idx) => {
       const sslAlerts = r.alerts.filter((a) => isSslFamily(a.alertType));
       const domAlerts = r.alerts.filter((a) => isDomainFamily(a.alertType));
       const sslNote = (r.sslResolutionNotes ?? "").trim() || "—";
       const domNote = (r.domainResolutionNotes ?? "").trim() || "—";
       const sslBadges = sslAlerts.map((a) => severityBadge(a.severity)).join(" ");
       const domBadges = domAlerts.map((a) => severityBadge(a.severity)).join(" ");
+      const rowBg = idx % 2 === 0 ? "#ffffff" : "#f8f9fa";
+      const tdBase = `padding:16px 10px;vertical-align:middle;border-bottom:1px solid #e8eaed;font-family:system-ui,-apple-system,sans-serif;text-align:center;font-size:12px;color:#1a1a1a;background:${rowBg};`;
 
-      const dashHtml =
-        r.dashboardExpiryLines?.length ?
-          r.dashboardExpiryLines
-            .map(
-              (l) =>
-                `<div style="font-size:12px;font-weight:600;margin-top:6px;line-height:1.4;color:${
-                  l.urgency === "red" ? "#ff9a93" : "#f0c674"
-                };">${escapeHtml(l.text)}</div>`
-            )
-            .join("")
+      const urgencyHtml = (r.dashboardExpiryLines ?? [])
+        .map(
+          (l) =>
+            `<div style="margin-top:4px;font-size:12px;font-weight:700;color:${
+              l.urgency === "red" ? "#c62828" : "#e65100"
+            };line-height:1.35;">${escapeHtml(l.text)}</div>`
+        )
+        .join("");
+      const badgesHtml =
+        sslBadges || domBadges ?
+          `<div style="margin-top:10px;line-height:1.6;">${sslBadges} ${domBadges}</div>`
         : "";
+
+      const siteBlock = `
+          <div style="text-align:center;line-height:1.45;">
+            <div style="font-weight:700;font-size:14px;color:#000000;letter-spacing:-0.02em;">${escapeHtml(r.siteName)}</div>
+            <div style="font-size:12px;color:#424242;margin-top:4px;">${escapeHtml(r.domain)}</div>
+            ${urgencyHtml}
+            ${badgesHtml}
+          </div>`;
+
+      const note = (s: string) => (s === "—" ? "—" : escapeHtml(s).replace(/\r\n|\n|\r/g, " "));
 
       return `
       <tr>
-        <td style="padding:12px 10px;vertical-align:top;border-bottom:1px solid #243044;font-family:system-ui,-apple-system,sans-serif;font-size:13px;color:#e8eef5;background:#151b24;">
-          <strong style="color:#f2f6fb;">${escapeHtml(r.siteName)}</strong><br/>
-          <span style="font-size:12px;color:#8b9aab;">${escapeHtml(r.domain)}</span>
-          ${dashHtml}
-          ${sslBadges || domBadges ? `<div style="margin-top:6px;">${sslBadges} ${domBadges}</div>` : ""}
-        </td>
-        <td style="padding:12px 10px;vertical-align:top;border-bottom:1px solid #243044;font-size:12px;color:#c5d0dc;background:#151b24;">${fmtDateEs(r.sslValidTo)}</td>
-        <td style="padding:12px 10px;vertical-align:top;border-bottom:1px solid #243044;font-size:12px;color:#b8c9d8;line-height:1.45;background:#151b24;">${sslNote === "—" ? "—" : nl2br(sslNote)}</td>
-        <td style="padding:12px 10px;vertical-align:top;border-bottom:1px solid #243044;font-size:12px;color:#c5d0dc;background:#151b24;">${fmtDateEs(r.domainExpiryFinal)}</td>
-        <td style="padding:12px 10px;vertical-align:top;border-bottom:1px solid #243044;font-size:12px;color:#b8c9d8;line-height:1.45;background:#151b24;">${domNote === "—" ? "—" : nl2br(domNote)}</td>
-      </tr>${otherAlertsHtml(r.alerts)}`;
+        <td style="${tdBase}">${siteBlock}</td>
+        <td style="${tdBase}font-weight:600;">${fmtDateEs(r.sslValidTo)}</td>
+        <td style="${tdBase}line-height:1.45;">${note(sslNote)}</td>
+        <td style="${tdBase}font-weight:600;">${fmtDateEs(r.domainExpiryFinal)}</td>
+        <td style="${tdBase}line-height:1.45;">${note(domNote)}</td>
+      </tr>`;
     })
     .join("");
 
   return `
       <tr>
-        <td style="padding:0;background:#121820;">
-          <p style="margin:0;padding:14px 16px 6px 16px;font-size:12px;font-weight:600;color:#64d2ff;font-family:system-ui,-apple-system,sans-serif;">1. Alertas de vencimiento (mismo criterio que el panel)</p>
-          <p style="margin:0;padding:0 16px 10px 16px;font-size:11px;color:#8b9aab;line-height:1.45;font-family:system-ui,-apple-system,sans-serif;">Sitios con SSL o dominio en ventana ≤${PANEL_EXPIRY_WINDOW_DAYS} días (o vencidos), según el último chequeo. Las columnas muestran fechas y notas de resolución. Si el sitio también falla HTTP/HTTPS, esos avisos van debajo de la fila.</p>
-          <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="border-collapse:collapse;font-family:system-ui,-apple-system,sans-serif;">
+        <td style="padding:8px 20px 24px 20px;background:#ffffff;">
+          <p style="margin:0;padding:20px 24px 8px 24px;font-size:15px;font-weight:700;color:#000000;font-family:system-ui,-apple-system,sans-serif;text-align:center;letter-spacing:-0.02em;">Alertas de vencimiento</p>
+          <p style="margin:0;padding:0 24px 20px 24px;font-size:12px;color:#424242;line-height:1.65;font-family:system-ui,-apple-system,sans-serif;text-align:center;">Mismo criterio que el panel. SSL o dominio en ventana ≤${PANEL_EXPIRY_WINDOW_DAYS} días (o vencidos), según el último chequeo.</p>
+          <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="border-collapse:collapse;font-family:system-ui,-apple-system,sans-serif;border:1px solid #dadce0;">
             ${headerCells}
             ${dataRows}
           </table>
@@ -339,92 +361,89 @@ function buildExpirySectionHtml(expiryRows: PurdySiteEmailRow[]): string {
       </tr>`;
 }
 
-function buildOpsSectionHtml(opsOnlyRows: PurdySiteEmailRow[]): string {
-  if (opsOnlyRows.length === 0) return "";
-  const rows = opsOnlyRows
-    .map((r) => {
-      const lines = r.alerts
-        .map(
-          (a) =>
-            `<span style="font-size:12px;color:#b8c5d4;">${severityBadge(a.severity)} ${escapeHtml(alertTypeLabel(a.alertType))}: ${escapeHtml(a.message)}</span>`
-        )
-        .join("<br/>");
-      return `<tr>
-        <td style="padding:12px 10px;vertical-align:top;border-bottom:1px solid #243044;font-size:13px;color:#e8eef5;background:#151b24;">
-          <strong style="color:#f2f6fb;">${escapeHtml(r.siteName)}</strong><br/>
-          <span style="font-size:12px;color:#8b9aab;">${escapeHtml(r.domain)}</span>
-        </td>
-        <td style="padding:12px 10px;vertical-align:top;border-bottom:1px solid #243044;font-size:12px;line-height:1.5;background:#151b24;">${lines}</td>
-      </tr>`;
-    })
-    .join("");
-
-  return `
-      <tr>
-        <td style="padding:0;background:#121820;">
-          <p style="margin:0;padding:16px 16px 6px 16px;font-size:12px;font-weight:600;color:#7eb8e8;font-family:system-ui,-apple-system,sans-serif;">2. Otras alertas (secundario)</p>
-          <p style="margin:0;padding:0 16px 10px 16px;font-size:11px;color:#8b9aab;line-height:1.45;font-family:system-ui,-apple-system,sans-serif;">Sitios con alertas abiertas que <strong>no</strong> están en la ventana de vencimiento del panel (sección 1). Suele ser HTTP/HTTPS/DNS u otros avisos. Si el sitio ya salió arriba, los fallos de conectividad van bajo esa fila.</p>
-          <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="border-collapse:collapse;font-family:system-ui,-apple-system,sans-serif;">
-            <tr style="background:#0d1520;">
-              <th align="left" style="padding:10px 10px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;color:#7a8fa3;border-bottom:1px solid #2a3544;">Sitio</th>
-              <th align="left" style="padding:10px 10px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;color:#7a8fa3;border-bottom:1px solid #2a3544;">Alertas</th>
-            </tr>
-            ${rows}
-          </table>
-        </td>
-      </tr>`;
-}
-
-function buildHeaderBlock(useLogoCid: boolean): string {
+function buildHeaderBlock(useLogoCid: boolean, invertEmailLogo: boolean): string {
   if (useLogoCid) {
+    const invertCss =
+      invertEmailLogo ? "-webkit-filter:invert(1);filter:invert(1);" : "";
+    const logoStyle =
+      "display:block;margin:0 auto;max-width:280px;width:100%;height:auto;border:0;outline:none;" + invertCss;
     return `
       <tr>
-        <td style="padding:28px 24px 20px 24px;text-align:center;background:linear-gradient(145deg,#0a1628 0%,#152a4a 55%,#0d2038 100%);border-radius:12px 12px 0 0;">
-          <img src="cid:${LOGO_CID}" alt="Grupo Purdy" width="200" style="display:block;margin:0 auto;max-width:200px;height:auto;border:0;outline:none;" />
-          <p style="margin:14px 0 0 0;font-size:13px;font-weight:600;letter-spacing:0.12em;text-transform:uppercase;color:#7eb8e8;">Estado sitios Web Purdy</p>
+        <td style="padding:28px 24px 22px 24px;text-align:center;background:#ffffff;border-radius:12px 12px 0 0;border-bottom:1px solid #e8eaed;">
+          <img src="cid:${LOGO_CID}" alt="Grupo Purdy" width="280" style="${logoStyle}" />
+          <p style="margin:18px 0 0 0;font-size:13px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:#000000;line-height:1.4;">Estado sitios Web Purdy</p>
         </td>
       </tr>`;
   }
   return `
       <tr>
-        <td style="padding:28px 24px 22px 24px;text-align:center;background:linear-gradient(145deg,#0a1628 0%,#152a4a 55%,#0d2038 100%);border-radius:12px 12px 0 0;">
-          <p style="margin:0;font-size:22px;font-weight:700;letter-spacing:0.06em;color:#f2f6fb;font-family:Georgia,'Times New Roman',serif;">GRUPO PURDY</p>
-          <p style="margin:10px 0 0 0;font-size:14px;font-weight:600;color:#64d2ff;font-family:system-ui,-apple-system,sans-serif;">Estado sitios Web Purdy</p>
+        <td style="padding:28px 24px 22px 24px;text-align:center;background:#ffffff;border-radius:12px 12px 0 0;border-bottom:1px solid #e0e0e0;">
+          <p style="margin:0;font-size:22px;font-weight:700;letter-spacing:0.06em;color:#000000;font-family:Georgia,'Times New Roman',serif;">GRUPO PURDY</p>
+          <p style="margin:10px 0 0 0;font-size:14px;font-weight:700;color:#000000;font-family:system-ui,-apple-system,sans-serif;">Estado sitios Web Purdy</p>
         </td>
       </tr>`;
 }
 
+function buildDashboardStatsGridHtml(input: PurdyEmailBuildInput): string {
+  const activeSites = input.activeSitesCount ?? input.sitesChecked;
+  const { lessThan5Days, fiveTo10Days } = countExpiryPanelBuckets(input.expiryRows);
+  const { critical, warning, openTotal } = input;
+  const cardOuter = "border:1px solid #e8eaed;border-radius:10px;background:#fafafa;";
+  const labelStyle =
+    "font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.07em;color:#616161;line-height:1.35;font-family:system-ui,-apple-system,sans-serif;";
+  const numBlack =
+    "font-size:30px;font-weight:700;color:#000000;line-height:1.1;font-family:system-ui,-apple-system,sans-serif;";
+  const numRed = numBlack.replace("#000000", "#c62828");
+  const numOrange = numBlack.replace("#000000", "#e65100");
+  const subStyle =
+    "font-size:12px;color:#212121;margin-top:6px;line-height:1.35;font-family:system-ui,-apple-system,sans-serif;";
+
+  const cell = (label: string, inner: string) => `
+            <td style="width:50%;padding:6px;vertical-align:top;">
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="${cardOuter}">
+                <tr>
+                  <td style="padding:16px 12px;text-align:center;">
+                    <div style="${labelStyle}">${escapeHtml(label)}</div>
+                    ${inner}
+                  </td>
+                </tr>
+              </table>
+            </td>`;
+
+  const row1 =
+    cell("Sitios activos", `<div style="${numBlack}">${activeSites}</div>`) +
+    cell(
+      "Alertas abiertas",
+      `<div style="${numBlack}">${openTotal}</div><div style="${subStyle}">críticas ${critical} · advertencias ${warning}</div>`
+    );
+  const row2 =
+    cell("Vencen en menos de 5 días", `<div style="${numRed}">${lessThan5Days}</div>`) +
+    cell("Vencen en 5 a 10 días", `<div style="${numOrange}">${fiveTo10Days}</div>`);
+
+  return `
+            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:separate;border-spacing:0;margin:0 0 8px 0;">
+              <tr>${row1}</tr>
+              <tr>${row2}</tr>
+            </table>`;
+}
+
 export function buildPurdyNotificationHtml(input: PurdyEmailBuildInput): string {
-  const { mode, sitesChecked, reason, critical, warning, openTotal, expiryRows, opsOnlyRows, useLogoCid } = input;
+  const { mode, sitesChecked, reason, critical, warning, openTotal, expiryRows, useLogoCid } = input;
+  const invertEmailLogo = input.invertEmailLogo === true;
   const appUrl = input.publicAppUrl?.trim() || "";
-  const totalDetailRows = expiryRows.length + opsOnlyRows.length;
+  const totalDetailRows = expiryRows.length;
 
   const summaryLine =
     mode === "test"
-      ? "Notificación manual. La <strong>sección 1</strong> copia el criterio de «Alertas de vencimiento» del panel (fechas del último chequeo), no solo la tabla de alertas."
-      : `Chequeo automático completado (${escapeHtml(reason)}). Sitios revisados: <strong>${sitesChecked}</strong>.`;
+      ? `Resumen con datos del inventario y criterio «Alertas de vencimiento» del panel.<br/>Sitios revisados en el chequeo: <strong>${sitesChecked === 0 ? "—" : String(sitesChecked)}</strong>.`
+      : `Chequeo automático completado (${escapeHtml(reason)}).<br/>Sitios revisados: <strong>${sitesChecked}</strong>.`;
 
   const statsRow = `
     <tr>
-      <td style="padding:16px 20px;background:#151b24;border-bottom:1px solid #2a3544;font-family:system-ui,-apple-system,sans-serif;font-size:13px;color:#c5d0dc;line-height:1.5;">
-        <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="border-collapse:collapse;">
-          <tr>
-            <td style="padding:4px 8px 4px 0;width:50%;vertical-align:top;">
-              <span style="color:#8b9aab;font-size:11px;text-transform:uppercase;letter-spacing:0.06em;">Alertas abiertas (registro)</span><br/>
-              <span style="font-size:20px;font-weight:700;color:#e8eef5;">${openTotal}</span>
-              <span style="color:#8b9aab;font-size:12px;"> &nbsp;·&nbsp; críticas ${critical} · advertencias ${warning}</span>
-              <div style="margin-top:10px;padding-top:10px;border-top:1px solid #2a3544;">
-                <span style="color:#64d2ff;font-size:11px;text-transform:uppercase;letter-spacing:0.06em;">Prioridad panel — vencimientos</span><br/>
-                <span style="font-size:18px;font-weight:700;color:#e8eef5;">${expiryRows.length}</span>
-                <span style="color:#8b9aab;font-size:12px;"> sitio(s) en ventana ≤${PANEL_EXPIRY_WINDOW_DAYS} días (como «Alertas de vencimiento»)</span>
-              </div>
-            </td>
-            <td style="padding:4px 0 4px 8px;width:50%;vertical-align:top;text-align:right;">
-              ${appUrl ? `<a href="${escapeHtml(appUrl)}" style="display:inline-block;margin-top:4px;padding:8px 16px;background:rgba(100,210,255,0.12);border:1px solid rgba(100,210,255,0.35);border-radius:8px;color:#a8e6ff;font-size:12px;font-weight:600;text-decoration:none;">Abrir inventario</a>` : ""}
-            </td>
-          </tr>
-        </table>
-        <p style="margin:12px 0 0 0;font-size:13px;color:#a8b8c8;">${summaryLine}</p>
+      <td style="padding:24px 18px 28px 18px;background:#ffffff;border-bottom:1px solid #e8eaed;font-family:system-ui,-apple-system,sans-serif;color:#000000;text-align:center;">
+        ${buildDashboardStatsGridHtml(input)}
+        ${appUrl ? `<div style="margin-top:20px;"><a href="${escapeHtml(appUrl)}" style="display:inline-block;padding:10px 24px;background:#000000;border-radius:8px;color:#ffffff;font-size:13px;font-weight:700;text-decoration:none;">Abrir inventario</a></div>` : ""}
+        <p style="margin:22px 0 0 0;font-size:13px;color:#1a1a1a;line-height:1.7;max-width:520px;margin-left:auto;margin-right:auto;">${summaryLine}</p>
       </td>
     </tr>`;
 
@@ -432,57 +451,44 @@ export function buildPurdyNotificationHtml(input: PurdyEmailBuildInput): string 
   if (totalDetailRows === 0) {
     const emptyMsg =
       mode === "test"
-        ? "No hay alertas abiertas en este momento; el inventario está al día respecto a los umbrales actuales."
+        ? "No hay sitios en la ventana de vencimiento del panel con los datos actuales."
         : openTotal === 0
           ? "No hay alertas abiertas. Los certificados y dominios están dentro de los umbrales configurados."
-          : "No se pudieron cargar los detalles de los sitios con alertas.";
+          : `Ningún sitio cumple ahora el criterio de «Alertas de vencimiento» del panel (SSL/dominio ≤${PANEL_EXPIRY_WINDOW_DAYS} días o vencido).`;
     tableBody = `
       <tr>
-        <td style="padding:28px 20px;text-align:center;font-family:system-ui,-apple-system,sans-serif;font-size:14px;color:#a8b8c8;line-height:1.55;background:#121820;">
+        <td style="padding:28px 20px;text-align:center;font-family:system-ui,-apple-system,sans-serif;font-size:14px;color:#000000;line-height:1.55;background:#ffffff;">
           ${emptyMsg}
         </td>
       </tr>`;
   } else {
-    const chunks: string[] = [];
-    if (expiryRows.length === 0 && opsOnlyRows.length > 0) {
-      chunks.push(`
-      <tr>
-        <td style="padding:14px 18px;font-size:12px;color:#a8b8c8;line-height:1.5;background:#121820;font-family:system-ui,-apple-system,sans-serif;">
-          Ningún sitio cumple ahora el criterio de «Alertas de vencimiento» del panel (SSL/dominio ≤${PANEL_EXPIRY_WINDOW_DAYS} días o vencido). Las filas siguientes son solo conectividad o DNS.
-        </td>
-      </tr>`);
-    }
-    chunks.push(buildExpirySectionHtml(expiryRows));
-    chunks.push(buildOpsSectionHtml(opsOnlyRows));
-    tableBody = chunks.join("");
+    tableBody = buildExpirySectionHtml(expiryRows);
   }
 
   const runTs = fmtDateTimeEs(input.lastRunAt);
   const footerLines =
     mode === "schedule" && runTs
-      ? `Ejecutado: <strong style="color:#8b9aab;">${escapeHtml(runTs)}</strong> (hora del servidor).<br/>`
-      : mode === "test"
-        ? `Envío manual de prueba.<br/>`
-        : "";
+      ? `Ejecutado: <strong style="color:#000000;">${escapeHtml(runTs)}</strong> (hora del servidor).<br/>`
+      : "";
 
   const footer = `
       <tr>
-        <td style="padding:18px 20px 24px 20px;text-align:center;font-size:11px;color:#5c6b7a;line-height:1.6;font-family:system-ui,-apple-system,sans-serif;background:#0f1419;border-radius:0 0 12px 12px;border:1px solid #243044;border-top:none;">
+        <td style="padding:24px 24px 28px 24px;text-align:center;font-size:11px;color:#424242;line-height:1.75;font-family:system-ui,-apple-system,sans-serif;background:#ffffff;border-radius:0 0 12px 12px;border:1px solid #e8eaed;border-top:none;">
           ${footerLines}
           Grupo Purdy · Inventario de sitios Web<br/>
-          ${mode === "schedule" ? "Este correo se genera automáticamente tras cada chequeo programado." : ""}
+          ${mode === "schedule" ? "<span style=\"display:block;margin-top:8px;\">Este correo se genera automáticamente tras cada chequeo programado.</span>" : ""}
         </td>
       </tr>`;
 
   return `<!DOCTYPE html>
 <html lang="es">
 <head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/></head>
-<body style="margin:0;padding:0;background:#0a0e12;">
-  <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="border-collapse:collapse;background:#0a0e12;padding:24px 12px;">
+<body style="margin:0;padding:0;background:#ffffff;">
+  <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="border-collapse:collapse;background:#ffffff;padding:16px 8px;">
     <tr>
       <td align="center">
-        <table role="presentation" cellpadding="0" cellspacing="0" width="600" style="max-width:600px;border-collapse:collapse;border-radius:12px;overflow:hidden;box-shadow:0 12px 40px rgba(0,0,0,0.35);">
-          ${buildHeaderBlock(useLogoCid)}
+        <table role="presentation" cellpadding="0" cellspacing="0" width="600" style="max-width:600px;border-collapse:collapse;border-radius:12px;overflow:hidden;border:1px solid #e0e0e0;">
+          ${buildHeaderBlock(useLogoCid, invertEmailLogo)}
           ${statsRow}
           ${tableBody}
           ${footer}
@@ -508,6 +514,7 @@ export function appendRowText(lines: string[], r: PurdySiteEmailRow): void {
   const dn = (r.domainResolutionNotes ?? "").trim();
   lines.push(`  Resolver dominio: ${dn || "—"}`);
   for (const a of r.alerts) {
+    if (!isSslFamily(a.alertType) && !isDomainFamily(a.alertType)) continue;
     lines.push(`  [${a.severity}] ${alertTypeLabel(a.alertType)}: ${a.message}`);
   }
   lines.push("");
@@ -517,24 +524,27 @@ export function buildPurdyNotificationText(input: PurdyEmailBuildInput): string 
   const lines: string[] = [];
   lines.push("Estado sitios Web Purdy");
   lines.push("");
+  const activeSites = input.activeSitesCount ?? input.sitesChecked;
+  const { lessThan5Days, fiveTo10Days } = countExpiryPanelBuckets(input.expiryRows);
+
   if (input.mode === "test") {
-    lines.push("Notificación manual desde el panel.");
+    lines.push("Resumen generado desde el panel con los datos actuales del inventario.");
+    if (input.sitesChecked > 0) lines.push(`Sitios revisados en el chequeo: ${input.sitesChecked}.`);
   } else {
     lines.push(`Chequeo: ${input.reason}. Sitios revisados: ${input.sitesChecked}.`);
     const ts = fmtDateTimeEs(input.lastRunAt);
     if (ts) lines.push(`Ejecutado (servidor): ${ts}.`);
   }
+  lines.push(`Sitios activos: ${activeSites}.`);
   lines.push(
     `Alertas abiertas: ${input.openTotal} (críticas: ${input.critical}, advertencias: ${input.warning}).`
   );
+  lines.push(`Vencen en menos de 5 días: ${lessThan5Days}.`);
+  lines.push(`Vencen en 5 a 10 días: ${fiveTo10Days}.`);
   lines.push("");
   if (input.expiryRows.length > 0) {
     lines.push("--- Vencimientos (criterio panel) ---");
     for (const r of input.expiryRows) appendRowText(lines, r);
-  }
-  if (input.opsOnlyRows.length > 0) {
-    lines.push("--- Otras alertas (fuera de ventana panel) ---");
-    for (const r of input.opsOnlyRows) appendRowText(lines, r);
   }
   if (input.publicAppUrl?.trim()) {
     lines.push(`Inventario: ${input.publicAppUrl.trim()}`);

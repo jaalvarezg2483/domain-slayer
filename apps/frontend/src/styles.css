@@ -1646,6 +1646,186 @@ h2 {
   color: #ffb4b0;
 }
 
+/* Acordeón (p. ej. programación de chequeos / notificaciones) */
+.settings-collapse {
+  margin-bottom: 1.25rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+}
+.settings-collapse__trigger {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1rem 1.25rem;
+  margin: 0;
+  border: none;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+.settings-collapse__trigger:hover {
+  background: rgba(255, 255, 255, 0.04);
+}
+.settings-collapse__trigger:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+.settings-collapse__trigger-text {
+  min-width: 0;
+}
+.settings-collapse__title {
+  display: block;
+  font-size: 1.05rem;
+  font-weight: 650;
+  margin: 0;
+  letter-spacing: -0.01em;
+}
+.settings-collapse__subtitle {
+  display: block;
+  margin: 0.35rem 0 0;
+  font-size: 0.8rem;
+  font-weight: 400;
+  color: var(--muted);
+  line-height: 1.4;
+}
+.settings-collapse__chevron {
+  flex-shrink: 0;
+  width: 1.35rem;
+  height: 1.35rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--muted);
+  transition: transform 0.2s ease;
+}
+.settings-collapse__trigger[aria-expanded="true"] .settings-collapse__chevron {
+  transform: rotate(90deg);
+}
+.settings-collapse__panel {
+  padding: 0 1.25rem 1.25rem;
+  border-top: 1px solid var(--border);
+}
+.settings-collapse__panel .form-grid {
+  padding-top: 0.25rem;
+}
+
+/* Alertas abiertas: agrupación por sitio */
+.alerts-page__toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem 1rem;
+  padding: 1rem 1.25rem;
+  border-bottom: 1px solid var(--border);
+}
+.alerts-page__search-label {
+  flex: 1 1 16rem;
+  min-width: 0;
+  margin: 0;
+}
+.alerts-page__search-label .input {
+  width: 100%;
+}
+.alerts-page__bulk-toggle {
+  flex-shrink: 0;
+}
+.alerts-site-group {
+  border-bottom: 1px solid var(--border);
+}
+.alerts-site-group:last-child {
+  border-bottom: none;
+}
+.alerts-site-group__header {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.65rem 1rem;
+  width: 100%;
+  padding: 0.9rem 1.25rem;
+  margin: 0;
+  border: none;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+.alerts-site-group__header:hover {
+  background: rgba(255, 255, 255, 0.04);
+}
+.alerts-site-group__header:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+.alerts-site-group__chevron {
+  flex-shrink: 0;
+  width: 1.25rem;
+  margin-top: 0.15rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--muted);
+  font-size: 1.1rem;
+  line-height: 1;
+  transition: transform 0.2s ease;
+}
+.alerts-site-group__header[aria-expanded="true"] .alerts-site-group__chevron {
+  transform: rotate(90deg);
+}
+.alerts-site-group__title-block {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+.alerts-site-group__title {
+  font-weight: 650;
+  font-size: 0.95rem;
+}
+.alerts-site-group__domain {
+  word-break: break-word;
+}
+.alerts-site-group__count {
+  font-size: 0.75rem;
+}
+.alerts-site-group__link {
+  flex-shrink: 0;
+  align-self: center;
+  color: var(--accent);
+  text-decoration: none;
+}
+.alerts-site-group__link:hover {
+  text-decoration: underline;
+}
+.alerts-site-group__panel {
+  padding: 0 1rem 1rem 1rem;
+}
+@media (min-width: 640px) {
+  .alerts-site-group__panel {
+    padding-left: 2.85rem;
+  }
+}
+.alerts-site-group__table {
+  margin: 0;
+}
+.alerts-site-group__table th:first-child,
+.alerts-site-group__table td:first-child {
+  width: 7rem;
+}
+.alerts-site-group__table th:nth-child(2),
+.alerts-site-group__table td:nth-child(2) {
+  width: 11rem;
+  max-width: 14rem;
+}
+
 .stat-label {
   font-size: 0.8rem;
   color: var(--muted);

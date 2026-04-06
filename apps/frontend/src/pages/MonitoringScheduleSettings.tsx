@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { api, type MonitoringScheduleDto } from "../api";
 import { ScheduleTimePicker } from "../components/ScheduleTimePicker";
 import { Spinner } from "../components/Spinner";
@@ -69,6 +69,44 @@ function toggleWeekday(weekdays: number[], cron: number): number[] {
     const order = (d: number) => (d === 0 ? 7 : d);
     return order(a) - order(b);
   });
+}
+
+function SettingsCollapse(props: {
+  id: string;
+  title: string;
+  subtitle?: string;
+  defaultOpen?: boolean;
+  children: ReactNode;
+}) {
+  const { id, title, subtitle, defaultOpen = false, children } = props;
+  const [open, setOpen] = useState(defaultOpen);
+  const panelId = `${id}-panel`;
+  const headingId = `${id}-heading`;
+  return (
+    <div className="settings-collapse">
+      <button
+        type="button"
+        className="settings-collapse__trigger"
+        id={headingId}
+        aria-expanded={open}
+        aria-controls={panelId}
+        onClick={() => setOpen((o) => !o)}
+      >
+        <span className="settings-collapse__trigger-text">
+          <span className="settings-collapse__title">{title}</span>
+          {subtitle ? <span className="settings-collapse__subtitle">{subtitle}</span> : null}
+        </span>
+        <span className="settings-collapse__chevron" aria-hidden>
+          ›
+        </span>
+      </button>
+      {open ? (
+        <div className="settings-collapse__panel" id={panelId} role="region" aria-labelledby={headingId}>
+          {children}
+        </div>
+      ) : null}
+    </div>
+  );
 }
 
 export function MonitoringScheduleSettings() {
@@ -179,7 +217,7 @@ export function MonitoringScheduleSettings() {
   if (loading) {
     return (
       <div className="stack narrow">
-        <h1>Programación de chequeos</h1>
+        <h1>Programación</h1>
         <p className="muted">Cargando…</p>
       </div>
     );
@@ -187,10 +225,10 @@ export function MonitoringScheduleSettings() {
 
   return (
     <div className="stack narrow">
-      <h1>Programación de chequeos</h1>
+      <h1>Programación</h1>
       <p className="muted small">
-        Aquí define cuándo la aplicación revisa por sí sola los sitios activos (lo mismo que si pulsara «Chequear todos»).
-        Elija días y hora según le convenga. Más abajo puede indicar si desea recibir avisos por correo o por Teams.
+        Defina cuándo se ejecutan los chequeos automáticos y cómo recibir avisos. Use las secciones siguientes para
+        desplegar u ocultar cada bloque.
       </p>
 
       {form.smtpConfigured === false && (
@@ -263,7 +301,12 @@ export function MonitoringScheduleSettings() {
         </button>
       </div>
 
-      <div className="card form-grid">
+      <SettingsCollapse
+        id="monitoring-schedule-checks"
+        title="Programación de chequeos"
+        subtitle="Activar chequeos, frecuencia, días, hora y chequeo diario de sitios próximos a vencer."
+      >
+        <div className="form-grid">
         <label className="span-2 form-checkbox-row">
           <input
             type="checkbox"
@@ -460,14 +503,15 @@ export function MonitoringScheduleSettings() {
             </span>
           </div>
         </div>
-
-        <div className="span-2">
-          <h2 style={{ fontSize: "1.05rem", margin: "0.5rem 0 0.25rem" }}>Notificaciones tras el chequeo programado</h2>
-          <p className="muted small" style={{ margin: "0 0 0.75rem" }}>
-            Active solo los canales que desee. La prueba usa exactamente lo que tenga marcado.
-          </p>
         </div>
+      </SettingsCollapse>
 
+      <SettingsCollapse
+        id="monitoring-schedule-notify"
+        title="Programación de notificaciones"
+        subtitle="Correo, Microsoft Teams y cuándo enviar el aviso tras un chequeo."
+      >
+        <div className="form-grid">
         <label className="span-2 form-checkbox-row">
           <input
             type="checkbox"
@@ -539,23 +583,24 @@ export function MonitoringScheduleSettings() {
             <option value="always">Siempre tras cada chequeo programado</option>
           </select>
         </label>
+        </div>
+      </SettingsCollapse>
 
-        {(form.lastScheduledRunAt || form.lastProximityDailyRunAt || form.updatedAt) && (
-          <p className="span-2 muted small" style={{ margin: 0 }}>
-            Último chequeo general:{" "}
-            {form.lastScheduledRunAt ? new Date(form.lastScheduledRunAt).toLocaleString() : "—"}
-            {" · "}
-            Último chequeo diario (sitios por vencer):{" "}
-            {form.lastProximityDailyRunAt ? new Date(form.lastProximityDailyRunAt).toLocaleString() : "—"}
-            {form.updatedAt && (
-              <>
-                {" "}
-                · Ajustes guardados: {new Date(form.updatedAt).toLocaleString()}
-              </>
-            )}
-          </p>
-        )}
-      </div>
+      {(form.lastScheduledRunAt || form.lastProximityDailyRunAt || form.updatedAt) && (
+        <p className="muted small" style={{ margin: "0.25rem 0 0" }}>
+          Último chequeo general:{" "}
+          {form.lastScheduledRunAt ? new Date(form.lastScheduledRunAt).toLocaleString() : "—"}
+          {" · "}
+          Último chequeo diario (sitios por vencer):{" "}
+          {form.lastProximityDailyRunAt ? new Date(form.lastProximityDailyRunAt).toLocaleString() : "—"}
+          {form.updatedAt && (
+            <>
+              {" "}
+              · Ajustes guardados: {new Date(form.updatedAt).toLocaleString()}
+            </>
+          )}
+        </p>
+      )}
     </div>
   );
 }

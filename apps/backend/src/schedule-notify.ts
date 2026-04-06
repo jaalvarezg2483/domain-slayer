@@ -2,32 +2,20 @@ import fs from "node:fs";
 import path from "node:path";
 import type { ServiceBroker } from "moleculer";
 import nodemailer from "nodemailer";
-import type { Alert, AlertType, Site } from "@domain-slayer/domain";
+import type { Alert, Site } from "@domain-slayer/domain";
 import type { MonitoringScheduleEntity } from "@domain-slayer/infrastructure";
 import {
   appendRowText,
   buildExpiryEmailRowsFromSites,
   buildPurdyNotificationHtml,
   buildPurdyNotificationText,
+  countExpiryPanelBuckets,
   fmtDateEs,
   LOGO_CID,
-  alertTypeLabel,
   sortExpiryRowsByPanelUrgency,
   type PurdyEmailBuildInput,
   type PurdySiteEmailRow,
 } from "./purdy-notification-email.js";
-
-function isSslFamily(t: AlertType): boolean {
-  return t === "ssl_expiring" || t === "ssl_expired" || t === "ssl_error";
-}
-
-function isDomainFamily(t: AlertType): boolean {
-  return (
-    t === "domain_expiring" ||
-    t === "domain_unknown_expiry" ||
-    t === "domain_registry_differs_from_manual"
-  );
-}
 
 function smtpTransport() {
   const host = process.env.SMTP_HOST?.trim();
@@ -58,19 +46,36 @@ function parseEmails(raw: string): string[] {
     .filter((s) => s.length > 0 && s.includes("@"));
 }
 
+/** Logo del correo: NO usar el PNG principal de la app si existe copia para notificaciones (fondo claro/transparente). */
 function resolvePurdyLogoPath(): string | null {
   const envPath = process.env.EMAIL_LOGO_PATH?.trim();
   if (envPath && fs.existsSync(envPath)) return path.resolve(envPath);
+  const cwd = process.cwd();
   const candidates = [
-    path.join(process.cwd(), "apps", "frontend", "public", "grupo-purdy-logo.png"),
-    path.join(process.cwd(), "public", "grupo-purdy-logo.png"),
-    path.join(process.cwd(), "..", "frontend", "public", "grupo-purdy-logo.png"),
-    path.join(process.cwd(), "assets", "email-logo.png"),
+    path.join(cwd, "apps", "backend", "assets", "grupo-purdy-logo-notify.png"),
+    path.join(cwd, "apps", "frontend", "public", "grupo-purdy-logo-notify.png"),
+    path.join(cwd, "public", "grupo-purdy-logo-notify.png"),
+    path.join(cwd, "..", "frontend", "public", "grupo-purdy-logo-notify.png"),
+    path.join(cwd, "assets", "grupo-purdy-logo-notify.png"),
+    path.join(cwd, "assets", "email-logo.png"),
+    path.join(cwd, "apps", "frontend", "public", "grupo-purdy-logo.png"),
+    path.join(cwd, "public", "grupo-purdy-logo.png"),
+    path.join(cwd, "..", "frontend", "public", "grupo-purdy-logo.png"),
   ];
   for (const p of candidates) {
     if (fs.existsSync(p)) return p;
   }
   return null;
+}
+
+/** Invierte solo el PNG principal oscuro; no tocar notify/email-logo salvo EMAIL_LOGO_INVERT en rutas personalizadas. */
+function invertEmailLogoForPath(logoPath: string | null): boolean {
+  if (!logoPath) return false;
+  if (process.env.EMAIL_LOGO_NO_INVERT === "true") return false;
+  const base = path.basename(logoPath).toLowerCase();
+  if (base === "grupo-purdy-logo-notify.png" || base === "email-logo.png") return false;
+  if (base === "grupo-purdy-logo.png") return true;
+  return process.env.EMAIL_LOGO_INVERT === "true";
 }
 
 function publicAppUrl(): string | null {
@@ -93,28 +98,99 @@ function inventoryOpenUrl(base: string | null | undefined): string | null {
   }
 }
 
-/** Misma información que la tabla del correo (sitio, dominio, SSL, dominio, cómo resolver, avisos del panel). */
+type TeamsDashboardSummary = {
+  activeSites: number;
+  openTotal: number;
+  critical: number;
+  warning: number;
+  expiryRed: number;
+  expiryOrange: number;
+};
+
+function teamsDashboardAdaptiveBlocks(d: TeamsDashboardSummary): Record<string, unknown>[] {
+  const statBox = (
+    label: string,
+    value: string,
+    sub?: string,
+    valueColor?: "Attention" | "Warning" | "Default"
+  ): Record<string, unknown> => ({
+    type: "Container",
+    style: "default",
+    items: [
+      {
+        type: "TextBlock",
+        text: label,
+        horizontalAlignment: "Center",
+        size: "Small",
+        weight: "Bolder",
+        wrap: true,
+      },
+      {
+        type: "TextBlock",
+        text: value,
+        horizontalAlignment: "Center",
+        size: "ExtraLarge",
+        weight: "Bolder",
+        color: valueColor ?? "Default",
+        spacing: "Small",
+      },
+      ...(sub ?
+        [
+          {
+            type: "TextBlock",
+            text: sub,
+            horizontalAlignment: "Center",
+            isSubtle: true,
+            size: "Small",
+            spacing: "None",
+            wrap: true,
+          },
+        ]
+      : []),
+    ],
+  });
+
+  const row = (a: Record<string, unknown>, b: Record<string, unknown>): Record<string, unknown> => ({
+    type: "ColumnSet",
+    spacing: "Small",
+    columns: [
+      { type: "Column", width: "stretch", items: [a] },
+      { type: "Column", width: "stretch", items: [b] },
+    ],
+  });
+
+  return [
+    row(statBox("Sitios activos", String(d.activeSites)), statBox("Alertas abiertas", String(d.openTotal), `críticas ${d.critical} · advertencias ${d.warning}`)),
+    row(
+      statBox("Vencen en menos de 5 días", String(d.expiryRed), undefined, "Attention"),
+      statBox("Vencen en 5 a 10 días", String(d.expiryOrange), undefined, "Warning")
+    ),
+  ];
+}
+
+/** Misma información que la tabla del correo (vencimientos SSL/dominio; el resto se ve en el inventario). */
 function buildTeamsAdaptiveCardContent(params: {
   title: string;
   intro: string;
   expiryRows: PurdySiteEmailRow[];
-  opsOnlyRows: PurdySiteEmailRow[];
+  dashboard: TeamsDashboardSummary;
   facts: { name: string; value: string }[];
   appUrl: string | null;
 }): Record<string, unknown> {
   const sorted = sortExpiryRowsByPanelUrgency(params.expiryRows);
   const body: Record<string, unknown>[] = [
-    { type: "TextBlock", text: params.intro, wrap: true, weight: "Bolder", spacing: "None" },
-    { type: "TextBlock", text: params.title, size: "Large", weight: "Bolder", spacing: "Medium" },
+    { type: "TextBlock", text: params.intro, wrap: true, weight: "Bolder", spacing: "None", color: "Default" },
+    { type: "TextBlock", text: params.title, size: "Large", weight: "Bolder", spacing: "Medium", color: "Default" },
+    ...teamsDashboardAdaptiveBlocks(params.dashboard),
   ];
 
   if (sorted.length > 0) {
     body.push({
       type: "TextBlock",
-      text: "1. Vencimientos (mismo criterio que el panel y el correo)",
+      text: "Alertas de vencimiento (mismo criterio que el panel y el correo)",
       weight: "Bolder",
       size: "Default",
-      color: "Accent",
+      color: "Default",
       spacing: "Medium",
       wrap: true,
     });
@@ -158,23 +234,9 @@ function buildTeamsAdaptiveCardContent(params: {
           { title: "Cómo resolver (dominio)", value: domNote },
         ],
       });
-      const other = r.alerts.filter((a) => !isSslFamily(a.alertType) && !isDomainFamily(a.alertType));
-      if (other.length > 0) {
-        const lines = other.map(
-          (a) => `• [${a.severity}] ${alertTypeLabel(a.alertType)}: ${a.message}`
-        );
-        rowItems.push({
-          type: "TextBlock",
-          text: `Otras alertas en este sitio:\n${lines.join("\n")}`,
-          wrap: true,
-          size: "Small",
-          isSubtle: true,
-          spacing: "Small",
-        });
-      }
       body.push({
         type: "Container",
-        style: "emphasis",
+        style: "default",
         separator: true,
         spacing: "Small",
         items: rowItems,
@@ -188,52 +250,6 @@ function buildTeamsAdaptiveCardContent(params: {
       isSubtle: true,
       spacing: "Small",
     });
-  }
-
-  if (params.opsOnlyRows.length > 0) {
-    body.push({
-      type: "TextBlock",
-      text: "2. Otras alertas (fuera de la ventana del panel)",
-      weight: "Bolder",
-      size: "Default",
-      color: "Accent",
-      spacing: "Large",
-      wrap: true,
-    });
-    for (const r of params.opsOnlyRows) {
-      const lines = r.alerts.map(
-        (a) => `• [${a.severity}] ${alertTypeLabel(a.alertType)}: ${a.message}`
-      );
-      body.push({
-        type: "Container",
-        style: "default",
-        separator: true,
-        spacing: "Small",
-        items: [
-          {
-            type: "TextBlock",
-            text: r.siteName,
-            weight: "Bolder",
-            wrap: true,
-          },
-          {
-            type: "TextBlock",
-            text: `Dominio: ${r.domain}`,
-            isSubtle: true,
-            size: "Small",
-            spacing: "None",
-            wrap: true,
-          },
-          {
-            type: "TextBlock",
-            text: lines.join("\n"),
-            wrap: true,
-            size: "Small",
-            spacing: "Small",
-          },
-        ],
-      });
-    }
   }
 
   const factLine = params.facts.map((f) => `${f.name}: ${f.value}`).join(" · ");
@@ -256,25 +272,18 @@ function buildTeamsAdaptiveCardContent(params: {
     $schema: "http://adaptivecards.io/schemas/adaptive-card.json",
     type: "AdaptiveCard",
     version: "1.4",
+    backgroundColor: "#FFFFFF",
     body,
     ...(actions.length ? { actions } : {}),
   };
 }
 
 /** Texto plano del MessageCard de respaldo (misma estructura que el cuerpo en texto del correo). */
-function buildTeamsLegacyPlainText(
-  intro: string,
-  expiryRows: PurdySiteEmailRow[],
-  opsOnlyRows: PurdySiteEmailRow[]
-): string {
+function buildTeamsLegacyPlainText(intro: string, expiryRows: PurdySiteEmailRow[]): string {
   const lines = [intro, ""];
   if (expiryRows.length > 0) {
     lines.push("--- Vencimientos (criterio panel) ---");
     for (const r of sortExpiryRowsByPanelUrgency(expiryRows)) appendRowText(lines, r);
-  }
-  if (opsOnlyRows.length > 0) {
-    lines.push("--- Otras alertas (fuera de ventana panel) ---");
-    for (const r of opsOnlyRows) appendRowText(lines, r);
   }
   const app = publicAppUrl()?.trim();
   if (app) lines.push("", `Inventario: ${app}`);
@@ -291,7 +300,7 @@ async function postTeamsMessageCard(
   const body = {
     "@type": "MessageCard",
     "@context": "https://schema.org/extensions",
-    themeColor: "152A4A",
+    themeColor: "1565C0",
     summary: title,
     title,
     text,
@@ -317,7 +326,7 @@ async function postTeams(
     title: string;
     intro: string;
     expiryRows: PurdySiteEmailRow[];
-    opsOnlyRows: PurdySiteEmailRow[];
+    dashboard: TeamsDashboardSummary;
     facts: { name: string; value: string }[];
     appUrl: string | null;
     /** Texto plano para el fallback MessageCard. */
@@ -374,6 +383,8 @@ export async function sendScheduleNotifications(
   })) as { items: Site[] };
   const sites = siteList.items ?? [];
   const { expiryRows, opsOnlyRows } = buildExpiryEmailRowsFromSites(sites, items);
+  const activeSitesCount = sites.filter((s) => s.isActive !== false).length;
+  const expiryBuckets = countExpiryPanelBuckets(expiryRows);
 
   if (settings.notifyOn === "alerts_only" && openTotal === 0 && expiryRows.length === 0) {
     console.info(
@@ -386,6 +397,7 @@ export async function sendScheduleNotifications(
   const payload: PurdyEmailBuildInput = {
     mode: "schedule",
     sitesChecked: opts.sitesChecked,
+    activeSitesCount,
     reason: opts.reason,
     critical,
     warning,
@@ -393,6 +405,7 @@ export async function sendScheduleNotifications(
     expiryRows,
     opsOnlyRows,
     useLogoCid,
+    invertEmailLogo: invertEmailLogoForPath(logoPath),
     publicAppUrl: publicAppUrl(),
     lastRunAt: settings.lastScheduledRunAt ?? null,
   };
@@ -403,27 +416,31 @@ export async function sendScheduleNotifications(
   const textPlain = buildPurdyNotificationText(payload);
 
   const textLines = [
+    `Sitios activos: ${activeSitesCount}.`,
+    `Alertas abiertas: ${openTotal} (críticas: ${critical}, advertencias: ${warning}).`,
+    `Vencen en menos de 5 días: ${expiryBuckets.lessThan5Days}.`,
+    `Vencen en 5 a 10 días: ${expiryBuckets.fiveTo10Days}.`,
+    "",
     `Chequeo automático completado (${opts.reason}).`,
     `Sitios revisados: ${opts.sitesChecked}.`,
-    `Alertas abiertas: ${openTotal} (críticas: ${critical}, advertencias: ${warning}).`,
     "",
     "Abra el inventario para ver el detalle.",
   ];
-  const textBody = buildTeamsLegacyPlainText(textLines.join("\n"), expiryRows, opsOnlyRows);
+  const textBody = buildTeamsLegacyPlainText(textLines.join("\n"), expiryRows);
   const teamsIntro =
     expiryRows.length > 0
-      ? "⚠️ Alertas de vencimiento de certificados y dominio: verifique la lista. Cuando renueve, recuerde actualizarlo en el inventario. ⚠️"
-      : "Chequeo programado completado. No hay sitios en la ventana de vencimiento del panel; revise alertas operativas o el inventario si aplica.";
+      ? "⚠️ Alertas de vencimiento de certificados y dominio: verifique la lista. Cuando renueve, actualice las fechas en el registro del sitio. ⚠️"
+      : "Chequeo programado completado. No hay sitios en la ventana de vencimiento del panel.";
 
   const runAt = settings.lastScheduledRunAt;
   const facts = [
+    { name: "Sitios activos", value: String(activeSitesCount) },
+    { name: "Alertas abiertas", value: `${openTotal} (crít. ${critical} / adv. ${warning})` },
+    { name: "< 5 días (panel)", value: String(expiryBuckets.lessThan5Days) },
+    { name: "5–10 días (panel)", value: String(expiryBuckets.fiveTo10Days) },
     { name: "Motivo", value: opts.reason },
     { name: "Sitios revisados", value: String(opts.sitesChecked) },
-    { name: "Vencimientos (panel)", value: String(expiryRows.length) },
     ...(runAt ? [{ name: "Ejecutado (servidor)", value: runAt.toISOString() }] : []),
-    { name: "Alertas abiertas", value: String(openTotal) },
-    { name: "Críticas", value: String(critical) },
-    { name: "Advertencias", value: String(warning) },
   ];
 
   let emailSent = false;
@@ -456,7 +473,14 @@ export async function sendScheduleNotifications(
         title: "Estado sitios Web Purdy — Chequeo programado",
         intro: teamsIntro,
         expiryRows,
-        opsOnlyRows,
+        dashboard: {
+          activeSites: activeSitesCount,
+          openTotal,
+          critical,
+          warning,
+          expiryRed: expiryBuckets.lessThan5Days,
+          expiryOrange: expiryBuckets.fiveTo10Days,
+        },
         facts,
         appUrl: publicAppUrl(),
         legacyText: textBody,
@@ -493,10 +517,12 @@ export async function sendTestNotifications(
   const from = process.env.SMTP_FROM?.trim() || process.env.SMTP_USER?.trim() || "noreply@localhost";
 
   let testExpiryRows: PurdySiteEmailRow[] = [];
-  let testOpsRows: PurdySiteEmailRow[] = [];
+  let testSitesChecked = 0;
+  let testActiveSitesCount = 0;
   let testCritical = 0;
   let testWarning = 0;
   let testOpen = 0;
+  let testBuckets = { lessThan5Days: 0, fiveTo10Days: 0 };
   if (broker && (settings.testEmail || settings.testTeams)) {
     const list = (await broker.call("alerting.alerts.list", {
       isResolved: false,
@@ -513,9 +539,11 @@ export async function sendTestNotifications(
       offset: 0,
     })) as { items: Site[] };
     const sites = siteList.items ?? [];
+    testSitesChecked = sites.length;
+    testActiveSitesCount = sites.filter((s) => s.isActive !== false).length;
     const built = buildExpiryEmailRowsFromSites(sites, items);
     testExpiryRows = built.expiryRows;
-    testOpsRows = built.opsOnlyRows;
+    testBuckets = countExpiryPanelBuckets(testExpiryRows);
   }
 
   const logoPath = resolvePurdyLogoPath();
@@ -533,21 +561,23 @@ export async function sendTestNotifications(
       try {
         const testPayload: PurdyEmailBuildInput = {
           mode: "test",
-          sitesChecked: 0,
-          reason: "Prueba manual",
+          sitesChecked: testSitesChecked,
+          activeSitesCount: testActiveSitesCount,
+          reason: "Envío desde panel",
           critical: testCritical,
           warning: testWarning,
           openTotal: testOpen,
           expiryRows: testExpiryRows,
-          opsOnlyRows: testOpsRows,
+          opsOnlyRows: [],
           useLogoCid,
+          invertEmailLogo: invertEmailLogoForPath(logoPath),
           publicAppUrl: publicAppUrl(),
           lastRunAt: null,
         };
         await transport.sendMail({
           from,
           to: recipients.join(", "),
-          subject: `[Estado sitios Web Purdy] Prueba · ${testExpiryRows.length ? `${testExpiryRows.length} venc. panel · ` : ""}${testOpen} alerta(s)`,
+          subject: `[Estado sitios Web Purdy] Ejemplo · ${testExpiryRows.length ? `${testExpiryRows.length} venc. panel · ` : ""}${testOpen} alerta(s)`,
           text: buildPurdyNotificationText(testPayload),
           html: buildPurdyNotificationHtml(testPayload),
           attachments: mailAttachments(logoPath),
@@ -566,14 +596,34 @@ export async function sendTestNotifications(
     } else {
       try {
         const testIntro =
-          "Mensaje de prueba: tarjeta con sitio, dominio, fechas SSL/dominio y notas «cómo resolver», igual que el correo.";
-        const testLegacy = buildTeamsLegacyPlainText(testIntro, testExpiryRows, testOpsRows);
+          "Ejemplo de notificación con el mismo formato que el aviso automático (vencimientos SSL/dominio).";
+        const testHead = [
+          `Sitios activos: ${testActiveSitesCount}.`,
+          `Alertas abiertas: ${testOpen} (críticas: ${testCritical}, advertencias: ${testWarning}).`,
+          `Vencen en menos de 5 días: ${testBuckets.lessThan5Days}.`,
+          `Vencen en 5 a 10 días: ${testBuckets.fiveTo10Days}.`,
+          "",
+        ].join("\n");
+        const testLegacy = buildTeamsLegacyPlainText(testHead + testIntro, testExpiryRows);
         await postTeams(teamsUrl, {
-          title: "Estado sitios Web Purdy — Prueba",
+          title: "Estado sitios Web Purdy — Ejemplo",
           intro: testIntro,
           expiryRows: testExpiryRows,
-          opsOnlyRows: testOpsRows,
-          facts: [{ name: "Estado", value: "OK (prueba)" }],
+          dashboard: {
+            activeSites: testActiveSitesCount,
+            openTotal: testOpen,
+            critical: testCritical,
+            warning: testWarning,
+            expiryRed: testBuckets.lessThan5Days,
+            expiryOrange: testBuckets.fiveTo10Days,
+          },
+          facts: [
+            { name: "Sitios activos", value: String(testActiveSitesCount) },
+            { name: "Alertas", value: `${testOpen} (crít. ${testCritical} / adv. ${testWarning})` },
+            { name: "< 5 días", value: String(testBuckets.lessThan5Days) },
+            { name: "5–10 días", value: String(testBuckets.fiveTo10Days) },
+            { name: "Estado", value: "Ejemplo" },
+          ],
           appUrl: publicAppUrl(),
           legacyText: testLegacy,
         });
