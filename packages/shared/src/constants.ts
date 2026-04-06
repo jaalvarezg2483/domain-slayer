@@ -2,10 +2,9 @@
 export const DEFAULT_ALERT_DAY_THRESHOLDS = [60, 30, 15, 7, 1] as const;
 
 /**
- * Si quedan menos de este número de días hasta el vencimiento (SSL o dominio), la alerta es **crítica**.
- * Ej.: con 3 → crítico solo con 0, 1 o 2 días; a 3 o más días es advertencia.
+ * Días hasta vencimiento por debajo de este valor → alerta **crítica** (0–4 con valor 5).
+ * Por encima → advertencia hasta aplicar otros criterios del evaluador.
  */
-/** Crítico si quedan menos de estos días (0–4 con valor 5); advertencia hasta 10 días. */
 export const ALERT_EXPIRING_CRITICAL_MAX_DAYS = 5;
 
 export const DOMAIN_EXPIRY_SOURCE = {

@@ -1,8 +1,4 @@
 import type { SiteDocument, SiteDocumentCreateInput, SiteDocumentUpdateInput } from "@domain-slayer/domain";
-import { NotFoundError, ValidationError } from "@domain-slayer/shared";
-import type { DocumentRepository, DocumentSearchHit } from "../ports/document-repository.js";
-import type { SiteRepository } from "../ports/site-repository.js";
-import { tokenizeSearchQuery } from "../lib/document-search.js";
 import {
   buildLibrarySearchSnippet,
   foldedTokenWholeWordMatch,
@@ -11,7 +7,12 @@ import {
   libraryHitTitleRelevance,
   librarySingleTokenCredentialNoise,
   librarySingleTokenNeedsRefinement,
+  NotFoundError,
+  tokenizeSearchQuery,
+  ValidationError,
 } from "@domain-slayer/shared";
+import type { DocumentRepository, DocumentSearchHit } from "../ports/document-repository.js";
+import type { SiteRepository } from "../ports/site-repository.js";
 import { z } from "zod";
 
 const docType = z.enum([

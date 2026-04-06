@@ -15,9 +15,10 @@
     "dev:backend": "npm run dev --prefix apps/backend",
     "start:backend": "node apps/backend/dist/main.js",
     "dev:frontend": "npm run dev --prefix apps/frontend",
-    "lint": "node -e \"console.log('Sin lint agregado en paquetes; usa ESLint por app si lo necesitas.')\"",
+    "lint": "npm run typecheck:packages && npx tsc -p apps/frontend/tsconfig.json --noEmit",
     "migrate": "npm run migrate --prefix packages/infrastructure",
     "typecheck": "tsc -b packages/shared packages/domain packages/application packages/infrastructure apps/backend",
+    "typecheck:packages": "tsc -b --noEmit packages/shared packages/domain packages/application packages/infrastructure",
     "rebuild:sqlite": "node scripts/rebuild-better-sqlite.cjs"
   },
   "devDependencies": {

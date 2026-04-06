@@ -2600,7 +2600,7 @@ select.input {
   }
 }
 
-/* Overlay «chequear todos»: caracol + barra (expectativa de espera larga) */
+/* Overlay «chequear todos»: caracol + barra */
 .checkall-overlay {
   position: fixed;
   inset: 0;
@@ -2609,20 +2609,30 @@ select.input {
   align-items: center;
   justify-content: center;
   padding: 1.25rem;
+  min-height: 100vh;
+  min-height: 100dvh;
   background: rgba(8, 12, 18, 0.72);
   backdrop-filter: blur(6px);
 }
 
 .checkall-overlay__card {
-  width: min(100%, 26rem);
-  padding: 1.35rem 1.5rem 1.5rem;
-  border-radius: 999px 999px 1.25rem 1.25rem;
-  background: linear-gradient(180deg, rgba(42, 53, 68, 0.55) 0%, var(--surface) 38%);
+  width: min(100%, 24rem);
+  margin: auto;
+  padding: 1.5rem 1.65rem 1.65rem;
+  border-radius: 1rem;
+  background: var(--surface);
   border: 1px solid var(--border);
   box-shadow:
     0 0 0 1px rgba(255, 255, 255, 0.04) inset,
     0 20px 50px rgba(0, 0, 0, 0.5);
+}
+
+.checkall-overlay__inner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
   text-align: center;
+  width: 100%;
 }
 
 .checkall-overlay__title {
@@ -2637,15 +2647,15 @@ select.input {
   font-size: 0.88rem;
   color: var(--muted);
   line-height: 1.45;
-  max-width: 22rem;
-  margin-left: auto;
-  margin-right: auto;
+  max-width: 20rem;
 }
 
 .checkall-overlay__track {
   position: relative;
+  width: 100%;
+  max-width: 19rem;
   height: 3.25rem;
-  margin: 0 0 1rem;
+  margin: 0 auto 1rem;
   border-radius: 999px;
   background: rgba(15, 20, 25, 0.65);
   border: 1px solid var(--border);
@@ -2707,7 +2717,7 @@ select.input {
     left: 6%;
   }
   to {
-    left: calc(94% - 3.5rem);
+    left: calc(94% - 4rem);
   }
 }
 
@@ -2745,7 +2755,6 @@ select.input {
 
 .checkall-overlay__snail {
   display: block;
-  vertical-align: bottom;
 }
 
 .checkall-overlay__message {
@@ -2755,6 +2764,7 @@ select.input {
   color: var(--text);
   opacity: 0.95;
   min-height: 4.25rem;
+  max-width: 20rem;
   animation: checkall-msg-in 0.55s ease;
 }
 

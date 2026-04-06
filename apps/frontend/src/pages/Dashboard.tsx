@@ -191,26 +191,26 @@ export function Dashboard() {
             {dashSiteSlice.map((s) => {
               const chk = formatDashboardLastCheck(s.lastCheckedAt);
               return (
-              <tr key={s.id}>
-                <td>
-                  <Link to={`/sites/${s.id}`}>{s.siteName}</Link>
-                  <div className="muted small">{s.domain}</div>
-                </td>
-                <td>
-                  <SiteActiveBadge isActive={s.isActive !== false} />
-                </td>
-                <td>
-                  <Badge kind={s.healthStatus} variant="health" />
-                </td>
-                <td>
-                  <Badge kind={s.sslStatus} variant="ssl" />
-                </td>
-                <td className={sslExpiryCellClass(s)}>{formatListDate(s.sslValidToFinal ?? s.sslValidTo)}</td>
-                <td className={domainExpiryCellClass(s)}>{formatListDate(s.domainExpiryFinal)}</td>
-                <td className="muted small table-cell--wrap" title={chk.title || undefined}>
-                  {chk.text}
-                </td>
-              </tr>
+                <tr key={s.id}>
+                  <td>
+                    <Link to={`/sites/${s.id}`}>{s.siteName}</Link>
+                    <div className="muted small">{s.domain}</div>
+                  </td>
+                  <td>
+                    <SiteActiveBadge isActive={s.isActive !== false} />
+                  </td>
+                  <td>
+                    <Badge kind={s.healthStatus} variant="health" />
+                  </td>
+                  <td>
+                    <Badge kind={s.sslStatus} variant="ssl" />
+                  </td>
+                  <td className={sslExpiryCellClass(s)}>{formatListDate(s.sslValidToFinal ?? s.sslValidTo)}</td>
+                  <td className={domainExpiryCellClass(s)}>{formatListDate(s.domainExpiryFinal)}</td>
+                  <td className="muted small table-cell--wrap" title={chk.title || undefined}>
+                    {chk.text}
+                  </td>
+                </tr>
               );
             })}
           </tbody>

@@ -10,5 +10,5 @@ export * from "./services/site-ssl-expiry.js";
 export * from "./services/monitoring-persist.js";
 export * from "./services/alert-evaluator.js";
 export * from "./dto/site-dto.js";
-export { tokenizeSearchQuery, buildSearchSnippet } from "./lib/document-search.js";
+export { tokenizeSearchQuery } from "@domain-slayer/shared";
 export * from "./monitoring/types.js";
