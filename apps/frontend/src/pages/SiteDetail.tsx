@@ -322,10 +322,10 @@ export function SiteDetail() {
             <strong>La fecha que usa el sistema no coincide con el último chequeo TLS</strong>
             <p className="muted small" style={{ margin: "0.5rem 0 0 0" }}>
               Origen: <strong>manual</strong>. El panel muestra{" "}
-              <strong>{new Date(site.sslValidToFinal!).toLocaleString("es-ES", esDateTime)}</strong> como fin de validez,
-              pero el chequeo obtuvo{" "}
-              <strong>{new Date(site.sslValidTo).toLocaleString("es-ES", esDateTime)}</strong> (alineado con lo que suele
-              ver el navegador). Para confiar en el certificado real, abra «Editar sitio» y elimine o corrija la fecha SSL
+              <strong>{new Date(site.sslValidToFinal as string).toLocaleString("es-ES", esDateTime)}</strong> como fin de
+              validez, pero el chequeo obtuvo{" "}
+              <strong>{new Date(site.sslValidTo as string).toLocaleString("es-ES", esDateTime)}</strong> (alineado con lo que
+              suele ver el navegador). Para confiar en el certificado real, abra «Editar sitio» y elimine o corrija la fecha SSL
               manual, o deje que prevalezca la detección automática tras un chequeo correcto.
             </p>
           </div>
