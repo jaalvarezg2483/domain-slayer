@@ -6,9 +6,21 @@ import path from "node:path";
 export default defineConfig(({ mode }) => {
   const repoRoot = path.resolve(__dirname, "../..");
   const env = { ...loadEnv(mode, repoRoot, ""), ...loadEnv(mode, __dirname, "") };
+  const vitePrefixed = { ...loadEnv(mode, repoRoot, "VITE_"), ...loadEnv(mode, __dirname, "VITE_") };
+  const siteUrl = vitePrefixed.VITE_SITE_URL ?? "";
   const apiProxyTarget = env.VITE_PROXY_TARGET || "http://localhost:3000";
   return {
-    plugins: [react()],
+    plugins: [
+      react(),
+      /* Sustituye %VITE_SITE_URL% en index.html sin exigir .env (evita warning y rutas rotas en dev). */
+      {
+        name: "html-vite-site-url",
+        enforce: "pre",
+        transformIndexHtml(html: string) {
+          return html.replaceAll("%VITE_SITE_URL%", siteUrl);
+        },
+      },
+    ],
     resolve: {
       alias: {
         "@": path.resolve(__dirname, "src"),

@@ -2,7 +2,7 @@ import { createId } from "@paralleldrive/cuid2";
 import type { Site, SiteCreateInput, SiteUpdateInput } from "@domain-slayer/domain";
 import type { SiteRepository, SiteListFilter } from "@domain-slayer/application";
 import { computeDomainExpiryFinal, computeSslExpiryFinal, resolveSslExpirySource } from "@domain-slayer/application";
-import { escapeSqlLikePattern, tokenizeSearchQuery } from "@domain-slayer/shared";
+import { compareSitesByPanelProximity, escapeSqlLikePattern, tokenizeSearchQuery } from "@domain-slayer/shared";
 import type { EntityManager, Repository } from "typeorm";
 import { Brackets } from "typeorm";
 import { SiteEntity } from "../entities/site.entity.js";
@@ -200,6 +200,19 @@ export class SqlSiteRepository implements SiteRepository {
     const total = await qb.clone().getCount();
     const limit = Math.min(filter.limit ?? 50, 500);
     const offset = filter.offset ?? 0;
+    const sr = filter.sortBy;
+    const normalized = typeof sr === "string" ? sr.trim().toLowerCase() : "";
+    const sortBy =
+      sr === undefined || normalized === "" || normalized === "proximity" ? "proximity" : "updated_at";
+
+    if (sortBy === "proximity") {
+      const rows = await qb.getMany();
+      const mapped = rows.map(mapSiteEntityToDomain);
+      const now = new Date();
+      mapped.sort((a, b) => compareSitesByPanelProximity(a, b, now));
+      return { items: mapped.slice(offset, offset + limit), total };
+    }
+
     qb.orderBy("s.updatedAt", "DESC").skip(offset).take(limit);
     const rows = await qb.getMany();
     return { items: rows.map(mapSiteEntityToDomain), total };

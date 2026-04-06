@@ -7,7 +7,7 @@
     "node": ">=20"
   },
   "scripts": {
-    "dev": "concurrently -n backend,frontend -c blue,green \"npm run dev:backend\" \"npm run dev:frontend\"",
+    "dev": "node node_modules/concurrently/dist/bin/concurrently.js -n backend,frontend -c blue,green \"npm run dev:backend\" \"npm run dev:frontend\"",
     "build": "npm run build:all && npm run build --prefix apps/frontend",
     "build:packages": "npm run build --prefix packages/shared && npm run build --prefix packages/domain && npm run build --prefix packages/application && npm run build --prefix packages/infrastructure",
     "build:services": "npm run build --prefix services/inventory.service && npm run build --prefix services/document.service && npm run build --prefix services/alerting.service && npm run build --prefix services/monitoring.service",
@@ -17,7 +17,8 @@
     "dev:frontend": "npm run dev --prefix apps/frontend",
     "lint": "node -e \"console.log('Sin lint agregado en paquetes; usa ESLint por app si lo necesitas.')\"",
     "migrate": "npm run migrate --prefix packages/infrastructure",
-    "typecheck": "tsc -b packages/shared packages/domain packages/application packages/infrastructure apps/backend"
+    "typecheck": "tsc -b packages/shared packages/domain packages/application packages/infrastructure apps/backend",
+    "rebuild:sqlite": "node scripts/rebuild-better-sqlite.cjs"
   },
   "devDependencies": {
     "@types/cors": "^2.8.17",

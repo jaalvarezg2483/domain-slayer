@@ -50,6 +50,7 @@ export function Dashboard() {
     return buildSitesExpiryProximity(data.sites);
   }, [data]);
 
+  /** El API ya devuelve sitios ordenados por proximidad (igual que el inventario). */
   const dashSiteSlice = useMemo(() => {
     if (!data) return [];
     const start = (dashSitePage - 1) * DASH_SITES_PAGE_SIZE;

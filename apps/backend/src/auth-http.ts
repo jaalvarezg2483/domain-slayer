@@ -54,10 +54,6 @@ export function authMiddleware(req: Request, res: Response, next: NextFunction):
 }
 
 export function registerAuthRoutes(r: Router, ds: DataSource): void {
-  r.get("/auth/status", (_req, res) => {
-    res.json({ authRequired: Boolean(process.env.JWT_SECRET?.trim()) });
-  });
-
   r.post("/auth/login", async (req, res, next) => {
     try {
       const secret = process.env.JWT_SECRET?.trim();

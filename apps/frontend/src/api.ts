@@ -45,6 +45,11 @@ export type MonitoringScheduleDto = {
   notifyTeamsEnabled: boolean;
   notifyOn: "always" | "alerts_only";
   lastScheduledRunAt: string | null;
+  /** Chequeo diario independiente: solo sitios en ventana de proximidad del panel (≤10 días). */
+  proximityDailyEnabled: boolean;
+  /** Hora local del servidor (0–23). */
+  proximityRunHour: number;
+  lastProximityDailyRunAt: string | null;
   updatedAt: string;
 };
 
@@ -205,10 +210,6 @@ export const api = {
       request<{
         items: unknown[];
         total: number;
-        aiStructured?: {
-          summary: string;
-          blocks: { title: string; lines: { label: string; value: string }[] }[];
-        };
         aiAnswer?: string;
         aiError?: string;
         aiUnavailable?: string;
@@ -267,7 +268,7 @@ export const api = {
     ask: (question: string) =>
       request<{
         answer: string;
-        answerMode?: "local" | "openai" | "ollama";
+        answerMode?: "local" | "ollama";
         sources: { documentCount: number; siteCount: number; totalDocumentsMatching: number };
         documentRefs?: { id: string; title: string; embeddedMedia: DocumentEmbeddedMediaItem[] | null }[];
         unavailable?: string;

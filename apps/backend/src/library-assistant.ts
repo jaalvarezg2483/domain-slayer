@@ -9,7 +9,7 @@ const MAX_EXCERPT_PER_DOC = 200_000;
 const MAX_CONTEXT_CHARS = 750_000;
 
 export type LibraryAssistantResult =
-  | { ok: true; answer: string; mode: "local" | "openai" | "ollama" }
+  | { ok: true; answer: string; mode: "local" | "ollama" }
   | { ok: false; error: string };
 
 function formatDate(v: unknown): string {
@@ -131,14 +131,14 @@ export async function libraryDedicatedAssistant(
       { role: "user", content: userContent },
     ],
     cfg,
-    { temperature: 0.2, max_tokens: cfg.kind === "ollama" ? 1800 : 2200 }
+    { temperature: 0.2, max_tokens: 1800 }
   );
 
   if (out.ok) {
     return {
       ok: true,
       answer: out.text,
-      mode: cfg.kind === "ollama" ? "ollama" : "openai",
+      mode: "ollama",
     };
   }
 

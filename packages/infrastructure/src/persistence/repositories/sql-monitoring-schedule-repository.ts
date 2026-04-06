@@ -26,6 +26,9 @@ export class SqlMonitoringScheduleRepository {
         notifyTeamsEnabled: false,
         notifyOn: "always",
         lastScheduledRunAt: null,
+        proximityDailyEnabled: false,
+        proximityRunHour: 7,
+        lastProximityDailyRunAt: null,
         updatedAt: new Date(),
       });
       await this.manager.save(row);

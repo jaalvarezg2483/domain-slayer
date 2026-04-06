@@ -14,6 +14,8 @@ export interface SiteListFilter {
   healthStatus?: Site["healthStatus"];
   limit?: number;
   offset?: number;
+  /** Orden de listado: por proximidad de vencimiento (panel) o por última actualización. */
+  sortBy?: "proximity" | "updated_at";
 }
 
 export interface SiteRepository {

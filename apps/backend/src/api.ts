@@ -9,9 +9,7 @@ import { Router, type Request, type Response, type NextFunction } from "express"
 import { authMiddleware, registerAuthRoutes } from "./auth-http.js";
 import multer from "multer";
 import { extractSearchableText } from "./extract-document-text.js";
-import { structuredLibraryAnswer, summarizeLibraryHits } from "./library-ai-answer.js";
 import { buildLocalSearchSummary } from "./library-local-intel.js";
-import { resolveLlmConfig } from "./llm-config.js";
 import { libraryDedicatedAssistant } from "./library-assistant.js";
 import { registerUserAdminRoutes } from "./user-admin-routes.js";
 import type { DocumentSearchHit } from "@domain-slayer/application";
@@ -74,6 +72,11 @@ export interface ApiRouterOptions {
 export function createApiRouter(broker: ServiceBroker, options?: ApiRouterOptions): Router {
   const r = Router();
 
+  /* Antes del JWT: debe responder siempre 200 JSON (el front arranca con esto). */
+  r.get("/auth/status", (_req, res) => {
+    res.json({ authRequired: Boolean(process.env.JWT_SECRET?.trim()) });
+  });
+
   r.use(authMiddleware);
   if (options?.dataSource) {
     registerAuthRoutes(r, options.dataSource);
@@ -114,7 +117,15 @@ export function createApiRouter(broker: ServiceBroker, options?: ApiRouterOption
 
   r.get("/sites", async (req, res, next) => {
     try {
-      const out = (await broker.call("inventory.sites.list", req.query)) as {
+      const q = req.query as Record<string, unknown>;
+      const sortRaw = q.sortBy;
+      const sortBy =
+        typeof sortRaw === "string" && sortRaw.trim()
+          ? sortRaw.trim()
+          : Array.isArray(sortRaw) && typeof sortRaw[0] === "string"
+            ? sortRaw[0].trim()
+            : "proximity";
+      const out = (await broker.call("inventory.sites.list", { ...q, sortBy })) as {
         items: Record<string, unknown>[];
         total: number;
       };
@@ -309,37 +320,8 @@ export function createApiRouter(broker: ServiceBroker, options?: ApiRouterOption
       };
 
       if (wantAi) {
-        const cfg = resolveLlmConfig();
-        if (!cfg) {
-          payload.aiAnswer = buildLocalSearchSummary(q, out.items);
-          payload.aiLocal = true;
-        } else if (cfg.kind === "openai") {
-          const structured = await structuredLibraryAnswer(q, out.items, cfg);
-          if (structured.ok) {
-            payload.aiStructured = {
-              summary: structured.summary,
-              blocks: structured.blocks,
-            };
-          } else {
-            const plain = await summarizeLibraryHits(q, out.items, cfg);
-            if (plain.ok) {
-              payload.aiAnswer = plain.answer;
-            } else {
-              payload.aiError = structured.error || plain.error;
-              payload.aiAnswer = buildLocalSearchSummary(q, out.items);
-              payload.aiLocal = true;
-            }
-          }
-        } else {
-          const plain = await summarizeLibraryHits(q, out.items, cfg);
-          if (plain.ok) {
-            payload.aiAnswer = plain.answer;
-          } else {
-            payload.aiError = plain.error;
-            payload.aiAnswer = buildLocalSearchSummary(q, out.items);
-            payload.aiLocal = true;
-          }
-        }
+        payload.aiAnswer = buildLocalSearchSummary(q, out.items);
+        payload.aiLocal = true;
       }
 
       res.json(payload);
@@ -597,11 +579,24 @@ export function createApiRouter(broker: ServiceBroker, options?: ApiRouterOption
 
   r.get("/dashboard/summary", async (_req, res, next) => {
     try {
-      const sites = (await broker.call("inventory.sites.list", { limit: 500, offset: 0 })) as {
+      const sites = (await broker.call("inventory.sites.list", {
+        limit: 500,
+        offset: 0,
+        sortBy: "proximity",
+      })) as {
         items: Record<string, unknown>[];
         total: number;
       };
-      const alerts = await broker.call("alerting.alerts.list", { isResolved: false, limit: 200, offset: 0 });
+      let alerts: { items: unknown[]; total: number } = { items: [], total: 0 };
+      try {
+        alerts = (await broker.call("alerting.alerts.list", {
+          isResolved: false,
+          limit: 200,
+          offset: 0,
+        })) as { items: unknown[]; total: number };
+      } catch (alertErr) {
+        console.warn("[dashboard/summary] alerting.alerts.list falló:", alertErr);
+      }
       res.json({
         sites: {
           total: sites.total,

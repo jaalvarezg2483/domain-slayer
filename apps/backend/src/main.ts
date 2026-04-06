@@ -35,15 +35,14 @@ async function main() {
     logger.warn("SMTP no configurado: defina SMTP_HOST en .env o variables de entorno y reinicie el backend");
   }
 
-  const hasOpenai = Boolean(process.env.OPENAI_API_KEY?.trim());
-  const hasOllama = Boolean(process.env.OLLAMA_BASE_URL?.trim() || process.env.OLLAMA_HOST?.trim());
-  if (hasOpenai) {
-    logger.info("OPENAI_API_KEY: resumen/asistente pueden usar OpenAI");
-  } else if (hasOllama) {
-    logger.info({ ollama: process.env.OLLAMA_BASE_URL ?? process.env.OLLAMA_HOST }, "Ollama configurado (LLM local)");
+  if (process.env.OLLAMA_BASE_URL?.trim() || process.env.OLLAMA_HOST?.trim()) {
+    logger.info(
+      { ollama: process.env.OLLAMA_BASE_URL ?? process.env.OLLAMA_HOST },
+      "Ollama configurado: el asistente de biblioteca puede ampliar respuestas con LLM local (opcional)."
+    );
   } else {
     logger.info(
-      "Sin OPENAI_API_KEY ni OLLAMA_BASE_URL: asistente y búsqueda con «IA» usan resumen local (gratis). Opcional: Ollama en su PC o clave OpenAI."
+      "Búsqueda de biblioteca y asistente usan solo índice local. Opcional: OLLAMA_BASE_URL para redactar con modelo local."
     );
   }
 

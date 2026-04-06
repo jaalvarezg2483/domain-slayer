@@ -16,7 +16,7 @@ function escapeHtml(s: string): string {
     .replace(/"/g, "&quot;");
 }
 
-function fmtDateEs(d: Date | string | null | undefined): string {
+export function fmtDateEs(d: Date | string | null | undefined): string {
   if (d == null) return "—";
   const dt = d instanceof Date ? d : new Date(d);
   if (Number.isNaN(dt.getTime())) return "—";
@@ -41,7 +41,7 @@ function nl2br(s: string): string {
   return escapeHtml(s).replace(/\r\n|\n|\r/g, "<br/>");
 }
 
-function alertTypeLabel(t: AlertType): string {
+export function alertTypeLabel(t: AlertType): string {
   const m: Partial<Record<AlertType, string>> = {
     ssl_expiring: "SSL por vencer",
     ssl_expired: "SSL vencido",
@@ -157,16 +157,7 @@ export function buildExpiryEmailRowsFromSites(sites: Site[], openAlerts: Alert[]
     });
   }
 
-  expiryRows.sort((a, b) => {
-    const minD = (r: PurdySiteEmailRow) =>
-      r.dashboardExpiryLines?.length ? Math.min(...r.dashboardExpiryLines.map((x) => x.days)) : 9999;
-    const redA = a.dashboardExpiryLines?.some((l) => l.urgency === "red") ?? false;
-    const redB = b.dashboardExpiryLines?.some((l) => l.urgency === "red") ?? false;
-    if (redA !== redB) return redA ? -1 : 1;
-    const d = minD(a) - minD(b);
-    if (d !== 0) return d;
-    return a.siteName.localeCompare(b.siteName, "es");
-  });
+  expiryRows.sort(compareExpiryRowsByPanelUrgency);
 
   const expiryIds = new Set(expiryRows.map((r) => r.siteId));
   const opsOnlyRows: PurdySiteEmailRow[] = [];
@@ -229,28 +220,38 @@ export function partitionRowsForEmail(rows: PurdySiteEmailRow[]): {
   };
 }
 
-function dateMs(d: Date | string | null | undefined): number | null {
-  if (d == null) return null;
-  const t = d instanceof Date ? d.getTime() : new Date(d).getTime();
-  return Number.isNaN(t) ? null : t;
+/** Días hasta vencimiento (panel): mínimo entre líneas SSL/dominio en ventana. */
+export function minPanelExpiryDays(r: PurdySiteEmailRow): number {
+  if (!r.dashboardExpiryLines?.length) return 9999;
+  return Math.min(...r.dashboardExpiryLines.map((x) => x.days));
 }
 
-function soonestExpiryMs(r: PurdySiteEmailRow): number {
-  const ssl = dateMs(r.sslValidTo);
-  const dom = dateMs(r.domainExpiryFinal);
-  const vals = [ssl, dom].filter((x): x is number => x !== null);
-  if (vals.length === 0) return Number.MAX_SAFE_INTEGER;
-  return Math.min(...vals);
+/**
+ * 0 = al menos una línea roja (SSL o dominio crítico/vencido en panel).
+ * 1 = solo naranja (ventana de advertencia).
+ * 2 = sin líneas (no debería ocurrir en filas de vencimiento).
+ */
+export function panelExpiryUrgencyTier(r: PurdySiteEmailRow): number {
+  const lines = r.dashboardExpiryLines;
+  if (!lines?.length) return 2;
+  if (lines.some((l) => l.urgency === "red")) return 0;
+  if (lines.some((l) => l.urgency === "orange")) return 1;
+  return 2;
 }
 
-/** Sitios con vencimiento más próximo primero (dominio o SSL, lo que venza antes). */
-export function sortExpiryRowsByUrgency(rows: PurdySiteEmailRow[]): PurdySiteEmailRow[] {
-  return [...rows].sort((a, b) => {
-    const ta = soonestExpiryMs(a);
-    const tb = soonestExpiryMs(b);
-    if (ta !== tb) return ta - tb;
-    return a.siteName.localeCompare(b.siteName, "es");
-  });
+/** Rojos primero, luego naranjas; dentro de cada grupo por días restantes (menor primero) y nombre. */
+export function compareExpiryRowsByPanelUrgency(a: PurdySiteEmailRow, b: PurdySiteEmailRow): number {
+  const ta = panelExpiryUrgencyTier(a);
+  const tb = panelExpiryUrgencyTier(b);
+  if (ta !== tb) return ta - tb;
+  const da = minPanelExpiryDays(a);
+  const db = minPanelExpiryDays(b);
+  if (da !== db) return da - db;
+  return a.siteName.localeCompare(b.siteName, "es");
+}
+
+export function sortExpiryRowsByPanelUrgency(rows: PurdySiteEmailRow[]): PurdySiteEmailRow[] {
+  return [...rows].sort(compareExpiryRowsByPanelUrgency);
 }
 
 function severityBadge(sev: string): string {
@@ -493,7 +494,7 @@ export function buildPurdyNotificationHtml(input: PurdyEmailBuildInput): string 
 </html>`;
 }
 
-function appendRowText(lines: string[], r: PurdySiteEmailRow): void {
+export function appendRowText(lines: string[], r: PurdySiteEmailRow): void {
   lines.push(`— ${r.siteName} (${r.domain})`);
   if (r.dashboardExpiryLines?.length) {
     for (const l of r.dashboardExpiryLines) {

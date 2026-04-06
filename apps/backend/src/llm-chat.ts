@@ -3,14 +3,7 @@ import type { LlmConfig } from "./llm-config.js";
 export type ChatMessage = { role: "system" | "user" | "assistant"; content: string };
 
 function chatCompletionsUrl(cfg: LlmConfig): string {
-  if (cfg.kind === "ollama") {
-    return `${cfg.baseUrl.replace(/\/$/, "")}/chat/completions`;
-  }
-  let host = (cfg.baseUrl ?? "https://api.openai.com").replace(/\/$/, "");
-  if (!/\/v1$/i.test(host)) {
-    host = `${host}/v1`;
-  }
-  return `${host}/chat/completions`;
+  return `${cfg.baseUrl.replace(/\/$/, "")}/chat/completions`;
 }
 
 export async function callChatCompletions(
@@ -20,21 +13,17 @@ export async function callChatCompletions(
 ): Promise<{ ok: true; text: string } | { ok: false; error: string }> {
   const url = chatCompletionsUrl(cfg);
 
-  const headers: Record<string, string> = { "Content-Type": "application/json" };
-  if (cfg.kind === "openai") {
-    headers.Authorization = `Bearer ${cfg.apiKey}`;
-  } else {
-    headers.Authorization = "Bearer ollama";
-  }
-
   try {
     const res = await fetch(url, {
       method: "POST",
-      headers,
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: "Bearer ollama",
+      },
       body: JSON.stringify({
         model: cfg.model,
         temperature: 0.2,
-        max_tokens: 2200,
+        max_tokens: 1800,
         ...extras,
         messages,
       }),

@@ -17,6 +17,7 @@ export function createInventoryService(getUow: () => SqlUnitOfWork): ServiceSche
           healthStatus: { type: "string", optional: true },
           limit: { type: "number", optional: true, convert: true },
           offset: { type: "number", optional: true, convert: true },
+          sortBy: { type: "enum", values: ["proximity", "updated_at"], optional: true },
         },
         async handler(ctx: { params: Record<string, unknown> }) {
           const uow = getUow();

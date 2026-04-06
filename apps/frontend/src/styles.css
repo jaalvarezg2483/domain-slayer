@@ -306,10 +306,45 @@ body {
   user-select: none;
 }
 
+.layout-root {
+  min-height: 100vh;
+}
+
 .layout {
   display: grid;
   grid-template-columns: minmax(188px, 214px) minmax(0, 1fr);
   min-height: 100vh;
+  min-width: 0;
+}
+
+/* Móvil: barra + drawer (ver @media max-width 900px) */
+.layout-mobile-bar,
+.layout-nav-backdrop {
+  display: none;
+}
+
+.layout-nav-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.38rem 0.55rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  border-radius: 10px;
+}
+.layout-nav-toggle__label {
+  line-height: 1;
+}
+
+.layout-mobile-bar__title {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--text);
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
 }
 
 .sidebar {
@@ -575,6 +610,12 @@ body {
   color: #fff;
 }
 
+@media (max-width: 900px) and (prefers-reduced-motion: reduce) {
+  .sidebar {
+    transition: none;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .nav-panel {
     animation: none;
@@ -611,6 +652,19 @@ body {
   max-width: var(--page-max-width);
   margin-inline: auto;
   min-width: 0;
+}
+
+/* Aviso cuando el backend no exige JWT */
+.layout-auth-banner {
+  margin-bottom: 1rem;
+  padding: 0.65rem 0.85rem;
+  font-size: 0.84rem;
+  line-height: 1.45;
+  border-color: rgba(255, 190, 100, 0.42);
+  background: rgba(255, 190, 100, 0.07);
+}
+.layout-auth-banner code {
+  font-size: 0.78em;
 }
 
 .login-standalone {
@@ -2355,23 +2409,79 @@ select.input {
 }
 
 @media (max-width: 900px) {
+  .layout-root {
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+    min-height: 100dvh;
+  }
+
   .layout {
-    grid-template-columns: 1fr;
-  }
-  .sidebar {
-    flex-direction: row;
-    flex-wrap: wrap;
-    align-items: flex-start;
-    padding: 0.65rem 0.75rem 0.75rem;
-    gap: 0.65rem;
-    border-right: none;
-    border-bottom: 1px solid var(--border);
-  }
-  .brand {
-    flex: 1 1 auto;
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    min-height: 0;
     min-width: 0;
+  }
+
+  .layout-mobile-bar {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    flex-shrink: 0;
+    padding: 0.55rem 0.75rem;
+    background: linear-gradient(165deg, #151c26 0%, var(--surface) 50%, #121820 100%);
+    border-bottom: 1px solid var(--border);
+    position: sticky;
+    top: 0;
+    z-index: 120;
+  }
+
+  .layout-nav-backdrop {
+    display: none;
+    position: fixed;
+    inset: 0;
+    z-index: 140;
+    margin: 0;
+    padding: 0;
+    border: none;
+    background: rgba(0, 0, 0, 0.48);
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .layout-root--nav-open .layout-nav-backdrop {
+    display: block;
+  }
+
+  .sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: min(19.5rem, 90vw);
+    height: 100vh;
+    height: 100dvh;
+    max-height: 100dvh;
+    z-index: 150;
+    flex-direction: column;
+    flex-wrap: nowrap;
+    padding: 0.75rem 0.65rem 1rem;
+    gap: 0.65rem;
+    border-right: 1px solid var(--border);
     border-bottom: none;
-    padding-bottom: 0;
+    transform: translateX(-105%);
+    transition: transform 0.28s cubic-bezier(0.22, 1, 0.36, 1);
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    box-shadow: none;
+  }
+  .layout-root--nav-open .sidebar {
+    transform: translateX(0);
+    box-shadow: 12px 0 40px rgba(0, 0, 0, 0.45);
+  }
+
+  .brand {
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 0.65rem;
   }
   .brand-logo-row {
     min-height: 2.5rem;
@@ -2389,43 +2499,41 @@ select.input {
     text-align: left;
     font-size: 0.95rem;
   }
+
   .nav {
-    flex: 1 1 100%;
+    flex: 1;
+    min-height: 0;
     width: 100%;
   }
   .nav-panel {
     width: 100%;
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(8.75rem, 1fr));
-    gap: 0.3rem;
-    padding: 0.45rem 0.4rem 0.55rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.28rem;
+    padding: 0.55rem 0.5rem 0.65rem;
   }
   .nav-section-label {
-    grid-column: 1 / -1;
-    margin-bottom: 0.2rem;
+    margin: 0 0 0.25rem 0.35rem;
   }
   .nav-panel__divider {
-    grid-column: 1 / -1;
-    margin: 0.25rem 0;
-  }
-  .nav-panel__divider--before-logout,
-  .nav-panel__logout {
-    grid-column: 1 / -1;
+    margin: 0.35rem 0.25rem 0.45rem;
   }
   .nav-link {
-    font-size: 0.78rem;
-    padding: 0.4rem 0.45rem;
-    gap: 0.35rem;
-  }
-  .nav-link__icon {
-    flex-shrink: 0;
+    font-size: 0.84rem;
+    padding: 0.5rem 0.55rem;
+    gap: 0.45rem;
   }
   .nav-link__text {
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    white-space: normal;
+    overflow: visible;
+    text-overflow: unset;
+    line-height: 1.25;
   }
+
   .main {
+    flex: 1;
+    min-width: 0;
+    min-height: 0;
     padding: 1rem 0.85rem 1.25rem;
   }
   .modal-panel,
@@ -2489,5 +2597,174 @@ select.input {
   }
   .table-pagination__btns {
     justify-content: space-between;
+  }
+}
+
+/* Overlay «chequear todos»: caracol + barra (expectativa de espera larga) */
+.checkall-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.25rem;
+  background: rgba(8, 12, 18, 0.72);
+  backdrop-filter: blur(6px);
+}
+
+.checkall-overlay__card {
+  width: min(100%, 26rem);
+  padding: 1.35rem 1.5rem 1.5rem;
+  border-radius: 999px 999px 1.25rem 1.25rem;
+  background: linear-gradient(180deg, rgba(42, 53, 68, 0.55) 0%, var(--surface) 38%);
+  border: 1px solid var(--border);
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.04) inset,
+    0 20px 50px rgba(0, 0, 0, 0.5);
+  text-align: center;
+}
+
+.checkall-overlay__title {
+  margin: 0 0 0.35rem;
+  font-size: 1.2rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.checkall-overlay__subtitle {
+  margin: 0 0 1.15rem;
+  font-size: 0.88rem;
+  color: var(--muted);
+  line-height: 1.45;
+  max-width: 22rem;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.checkall-overlay__track {
+  position: relative;
+  height: 3.25rem;
+  margin: 0 0 1rem;
+  border-radius: 999px;
+  background: rgba(15, 20, 25, 0.65);
+  border: 1px solid var(--border);
+  overflow: hidden;
+}
+
+.checkall-overlay__track-rail {
+  position: absolute;
+  left: 4%;
+  right: 4%;
+  top: 50%;
+  height: 5px;
+  transform: translateY(-50%);
+  border-radius: 999px;
+  background: rgba(42, 53, 68, 0.9);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.06) inset;
+}
+
+.checkall-overlay__shimmer {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(
+    105deg,
+    transparent 0%,
+    transparent 40%,
+    rgba(52, 199, 89, 0.12) 48%,
+    rgba(100, 210, 255, 0.08) 52%,
+    transparent 60%,
+    transparent 100%
+  );
+  background-size: 220% 100%;
+  animation: checkall-shimmer 2.8s ease-in-out infinite;
+  pointer-events: none;
+}
+
+@keyframes checkall-shimmer {
+  0% {
+    background-position: 120% 0;
+  }
+  100% {
+    background-position: -120% 0;
+  }
+}
+
+.checkall-overlay__creep {
+  position: absolute;
+  left: 6%;
+  top: 50%;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  transform: translateY(-50%);
+  animation: checkall-creep-x 9s ease-in-out infinite alternate;
+}
+
+@keyframes checkall-creep-x {
+  from {
+    left: 6%;
+  }
+  to {
+    left: calc(94% - 3.5rem);
+  }
+}
+
+.checkall-overlay__glow {
+  display: block;
+  width: clamp(4rem, 42vw, 11rem);
+  height: 7px;
+  margin-right: -1.1rem;
+  border-radius: 999px;
+  background: linear-gradient(90deg, rgba(52, 199, 89, 0.15), var(--ok) 35%, #7bed9a 88%, rgba(126, 237, 154, 0.95));
+  box-shadow:
+    0 0 14px rgba(52, 199, 89, 0.45),
+    0 0 28px rgba(52, 199, 89, 0.2),
+    0 1px 0 rgba(255, 255, 255, 0.35) inset;
+  flex-shrink: 0;
+}
+
+.checkall-overlay__snail-wrap {
+  position: relative;
+  z-index: 2;
+  flex-shrink: 0;
+  filter: drop-shadow(0 3px 6px rgba(0, 0, 0, 0.35));
+  animation: checkall-snail-wobble 2.2s ease-in-out infinite;
+}
+
+@keyframes checkall-snail-wobble {
+  0%,
+  100% {
+    transform: rotate(-4deg) translateY(0);
+  }
+  50% {
+    transform: rotate(3deg) translateY(-2px);
+  }
+}
+
+.checkall-overlay__snail {
+  display: block;
+  vertical-align: bottom;
+}
+
+.checkall-overlay__message {
+  margin: 0;
+  font-size: 0.9rem;
+  line-height: 1.5;
+  color: var(--text);
+  opacity: 0.95;
+  min-height: 4.25rem;
+  animation: checkall-msg-in 0.55s ease;
+}
+
+@keyframes checkall-msg-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
   }
 }

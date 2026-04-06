@@ -29,6 +29,9 @@ function emptyForm(): MonitoringScheduleDto {
     notifyTeamsEnabled: false,
     notifyOn: "alerts_only",
     lastScheduledRunAt: null,
+    proximityDailyEnabled: false,
+    proximityRunHour: 7,
+    lastProximityDailyRunAt: null,
     updatedAt: "",
   };
 }
@@ -42,6 +45,8 @@ function normalizeScheduleDto(dto: MonitoringScheduleDto): MonitoringScheduleDto
   const ip = dto.isoWeekParity;
   const isoWeekParity = ip === 0 || ip === 1 ? ip : null;
   const cronFirstWeekOnly = Boolean(dto.cronFirstWeekOnly);
+  const ph = Number(dto.proximityRunHour);
+  const proximityRunHour = Number.isFinite(ph) ? Math.min(23, Math.max(0, Math.floor(ph))) : 7;
   return {
     ...dto,
     intervalDays,
@@ -51,6 +56,8 @@ function normalizeScheduleDto(dto: MonitoringScheduleDto): MonitoringScheduleDto
     cronFirstWeekOnly,
     notifyEmailEnabled: dto.notifyEmailEnabled !== false,
     notifyTeamsEnabled: Boolean(dto.notifyTeamsEnabled),
+    proximityDailyEnabled: Boolean(dto.proximityDailyEnabled),
+    proximityRunHour,
   };
 }
 
@@ -119,6 +126,8 @@ export function MonitoringScheduleSettings() {
         notifyEmailEnabled: form.notifyEmailEnabled,
         notifyTeamsEnabled: form.notifyTeamsEnabled,
         notifyOn: form.notifyOn,
+        proximityDailyEnabled: form.proximityDailyEnabled,
+        proximityRunHour: form.proximityRunHour,
       });
       const norm = normalizeScheduleDto(dto);
       setForm(norm);
@@ -177,10 +186,8 @@ export function MonitoringScheduleSettings() {
     <div className="stack narrow">
       <h1>Programación de chequeos</h1>
       <p className="muted small">
-        Los chequeos automáticos usan la misma lógica que «Chequear todos» (solo sitios activos). La hora y el calendario
-        siguen la zona horaria del servidor donde corre el backend. Tras cada run verá la fecha en «Último chequeo
-        programado» abajo y en el pie del correo (hora del servidor). Una alerta de SSL o dominio «crítica» es cuando
-        quedan menos de 3 días (0, 1 o 2); a partir de 3 días es advertencia hasta el siguiente chequeo.
+        Aquí define cuándo la aplicación revisa por sí sola los sitios activos (lo mismo que si pulsara «Chequear todos»).
+        Elija días y hora según le convenga. Más abajo puede indicar si desea recibir avisos por correo o por Teams.
       </p>
 
       {err && <div className="card error">{err}</div>}
@@ -230,14 +237,15 @@ export function MonitoringScheduleSettings() {
           />
           <span className="form-checkbox-row__text">
             <span className="form-checkbox-row__title">Activar chequeos programados</span>
-            <span className="muted small">Si está desactivado, no se ejecutan runs automáticos.</span>
+            <span className="muted small">Si está desactivado, no hay chequeos automáticos en esta programación.</span>
           </span>
         </label>
 
         <div className="span-2 schedule-assistant">
           <h2 className="schedule-assistant__title">Cuándo ejecutar el chequeo</h2>
           <p className="muted small schedule-assistant__intro">
-            Marque los días, elija cada cuánto y la hora exacta. El servidor usa node-cron en su zona horaria (0 = domingo).
+            Indique con qué frecuencia y a qué hora deben ejecutarse los chequeos. El domingo cuenta como primer día de la
+            semana en el calendario. El apartado de «sitios por vencer» es independiente y está más abajo.
           </p>
 
           <label className="span-2">
@@ -251,10 +259,10 @@ export function MonitoringScheduleSettings() {
             >
               <option value="daily">Diario (todos los días)</option>
               <option value="weekly">Semanal</option>
-              <option value="biweekly">Bisemanal (una semana sí, otra no — por número de semana ISO)</option>
+              <option value="biweekly">Bisemanal (una semana sí, otra no)</option>
               <option value="monthly_first">Mensual (solo el primer Lun/Mar/… de ese día en el mes)</option>
               <option value="interval">Cada N días (desde el último chequeo)</option>
-              <option value="custom">Avanzado: cron manual</option>
+              <option value="custom">Avanzado (solo administradores)</option>
             </select>
           </label>
 
@@ -290,13 +298,13 @@ export function MonitoringScheduleSettings() {
                       ? "Solo la primera aparición de cada día marcado dentro del mes (días 1–7 del calendario)."
                       : visual.recurrence === "interval"
                         ? "En «cada N días» no se usan los días de la semana."
-                        : "En cron manual los días no se usan aquí."}
+                        : "En modo avanzado los días de la semana no se usan aquí."}
             </span>
           </div>
 
           {visual.recurrence === "biweekly" ? (
             <label className="span-2">
-              Semanas en las que corre (ISO)
+              En qué semanas alternas debe ejecutarse
               <select
                 className="input"
                 value={visual.biweeklyParity}
@@ -347,15 +355,14 @@ export function MonitoringScheduleSettings() {
             />
             {visual.recurrence === "custom" ? (
               <span className="muted small" style={{ display: "block", marginTop: "0.35rem" }}>
-                En modo avanzado la hora la define la expresión cron; el reloj solo actualiza los campos auxiliares del
-                servidor.
+                En modo avanzado, el horario lo fija el texto de programación de abajo; el reloj sirve solo de referencia.
               </span>
             ) : null}
           </div>
 
           {visual.recurrence === "custom" ? (
             <label className="span-2">
-              Expresión cron (5 campos: minuto hora día-mes mes día-semana)
+              Programación en formato técnico (uso avanzado)
               <input
                 className="input"
                 spellCheck={false}
@@ -364,11 +371,7 @@ export function MonitoringScheduleSettings() {
                 placeholder="0 8 * * 1"
               />
               <span className="muted small">
-                Ej.: <code style={{ color: "var(--muted)" }}>0 8 * * 1</code> = lunes 08:00.{" "}
-                <a href="https://github.com/node-cron/node-cron#cron-syntax" target="_blank" rel="noreferrer">
-                  Sintaxis node-cron
-                </a>
-                .
+                Use este campo solo si quien administra el sistema le pasó el texto exacto de programación.
               </span>
             </label>
           ) : null}
@@ -376,6 +379,51 @@ export function MonitoringScheduleSettings() {
           <p className="span-2 muted small schedule-assistant__summary" style={{ margin: 0 }}>
             <strong>Resumen:</strong> {humanSummary(visual) || "—"}
           </p>
+        </div>
+
+        <div
+          className="span-2"
+          style={{
+            borderTop: "1px solid var(--border, rgba(255,255,255,0.08))",
+            paddingTop: "1rem",
+            marginTop: "0.25rem",
+          }}
+        >
+          <h2 style={{ fontSize: "1.05rem", margin: "0 0 0.25rem" }}>Chequeo diario (solo próximos a vencer)</h2>
+          <p className="muted small" style={{ margin: "0 0 0.75rem" }}>
+            Además del chequeo general, puede activar una revisión <strong>una vez al día</strong> solo para los sitios que
+            en el panel aparecen como próximos a vencer (certificado o dominio). Así se detecta antes si ya renovaron. Si un
+            sitio deja de estar en esa situación, puede recibir un aviso positivo por los mismos medios que configure abajo
+            (correo o Teams), si los tiene activados.
+          </p>
+          <label className="span-2 form-checkbox-row">
+            <input
+              type="checkbox"
+              checked={form.proximityDailyEnabled}
+              onChange={(e) => setForm({ ...form, proximityDailyEnabled: e.target.checked })}
+            />
+            <span className="form-checkbox-row__text">
+              <span className="form-checkbox-row__title">Activar chequeo diario de proximidad</span>
+              <span className="muted small">No requiere tener activado el chequeo programado global.</span>
+            </span>
+          </label>
+          <div className="span-2 schedule-time-row">
+            <span className="modal-notes-label-text" style={{ display: "block", marginBottom: "0.4rem" }}>
+              Hora del día
+            </span>
+            <ScheduleTimePicker
+              hour={form.proximityRunHour}
+              minute={0}
+              hourOnly
+              disabled={!form.proximityDailyEnabled}
+              onChange={({ hour: h }) =>
+                setForm({ ...form, proximityRunHour: Math.min(23, Math.max(0, h)) })
+              }
+            />
+            <span className="muted small" style={{ display: "block", marginTop: "0.35rem" }}>
+              Elija la hora en punto (como en el reloj de arriba). Coincide con el reloj de la instalación de esta aplicación.
+            </span>
+          </div>
         </div>
 
         <div className="span-2">
@@ -394,9 +442,8 @@ export function MonitoringScheduleSettings() {
           <span className="form-checkbox-row__text">
             <span className="form-checkbox-row__title">Correo electrónico</span>
             <span className="muted small">
-              Destinatarios separados por coma o espacio. En el servidor, configure SMTP en un archivo{" "}
-              <code style={{ color: "var(--muted)" }}>.env</code> (vea <code style={{ color: "var(--muted)" }}>.env.example</code> en la raíz del
-              proyecto: SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS, SMTP_FROM) y reinicie el backend.
+              Escriba las direcciones separadas por coma o espacio. Si los mensajes no llegan, quien administra esta
+              aplicación debe revisar la configuración de correo del sistema.
             </span>
           </span>
         </label>
@@ -422,23 +469,20 @@ export function MonitoringScheduleSettings() {
           <span className="form-checkbox-row__text">
             <span className="form-checkbox-row__title">Microsoft Teams</span>
             <span className="muted small">
-              El backend envía un POST con JSON al estilo <strong>MessageCard</strong> (conectores clásicos: webhook
-              entrante del canal). Eso es lo más directo: pegue la URL del webhook aquí.
+              Reciba en Teams un resumen parecido al del correo: sitios, fechas y avisos importantes. Pegue el enlace que
+              Microsoft Teams le dio para conectar avisos al canal (o el que le indique su equipo de TI).
             </span>
             <span className="muted small" style={{ display: "block", marginTop: "0.35rem" }}>
-              <strong>Power Automate:</strong> puede usar un flujo con desencadenador HTTP que reciba el mismo POST y una
-              acción «Publicar en un chat o canal de Teams» (o reenviar el cuerpo). La URL que debe guardar en esta app es
-              la del flujo (solicitud HTTP), no sustituye al webhook salvo que el flujo exponga un extremo compatible. Use
-              «Probar» con Teams marcado para validar.
+              Use «Probar» para comprobar que el enlace funciona antes de depender de los avisos automáticos.
             </span>
           </span>
         </label>
         <label className="span-2">
-          <span className="sr-only">URL del webhook de Teams o flujo Power Automate</span>
+          <span className="sr-only">Enlace para avisos en Microsoft Teams</span>
           <input
             className="input"
             spellCheck={false}
-            placeholder="https://outlook.office.com/webhook/… o URL del desencadenador HTTP de Power Automate"
+            placeholder="Pegue aquí el enlace para avisos en Teams"
             value={form.teamsWebhookUrl ?? ""}
             disabled={!form.notifyTeamsEnabled}
             onChange={(e) =>
@@ -459,10 +503,13 @@ export function MonitoringScheduleSettings() {
           </select>
         </label>
 
-        {(form.lastScheduledRunAt || form.updatedAt) && (
+        {(form.lastScheduledRunAt || form.lastProximityDailyRunAt || form.updatedAt) && (
           <p className="span-2 muted small" style={{ margin: 0 }}>
-            Último chequeo programado:{" "}
+            Último chequeo general:{" "}
             {form.lastScheduledRunAt ? new Date(form.lastScheduledRunAt).toLocaleString() : "—"}
+            {" · "}
+            Último chequeo diario (sitios por vencer):{" "}
+            {form.lastProximityDailyRunAt ? new Date(form.lastProximityDailyRunAt).toLocaleString() : "—"}
             {form.updatedAt && (
               <>
                 {" "}

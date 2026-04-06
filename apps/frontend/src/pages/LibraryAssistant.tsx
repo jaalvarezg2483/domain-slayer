@@ -56,10 +56,8 @@ export function LibraryAssistant() {
         r.answerMode === "local"
           ? "Solo búsqueda en índice"
           : r.answerMode === "ollama"
-            ? "Texto ampliado con modelo local"
-            : r.answerMode === "openai"
-              ? "Texto ampliado con modelo en la nube"
-              : null;
+            ? "Texto ampliado con Ollama (local)"
+            : null;
       const src =
         r.sources != null
           ? [

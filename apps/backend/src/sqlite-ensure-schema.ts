@@ -102,6 +102,22 @@ export async function ensureSqliteSchema(ds: DataSource, logger: Logger): Promis
           );
           logger.info("SQLite: columna monitoring_schedule.cron_first_week_only añadida");
         }
+        if (!msNames.has("proximity_daily_enabled")) {
+          await qr.query(
+            `ALTER TABLE monitoring_schedule ADD COLUMN proximity_daily_enabled INTEGER NOT NULL DEFAULT 0`
+          );
+          logger.info("SQLite: columna monitoring_schedule.proximity_daily_enabled añadida");
+        }
+        if (!msNames.has("proximity_run_hour")) {
+          await qr.query(
+            `ALTER TABLE monitoring_schedule ADD COLUMN proximity_run_hour INTEGER NOT NULL DEFAULT 7`
+          );
+          logger.info("SQLite: columna monitoring_schedule.proximity_run_hour añadida");
+        }
+        if (!msNames.has("last_proximity_daily_run_at")) {
+          await qr.query(`ALTER TABLE monitoring_schedule ADD COLUMN last_proximity_daily_run_at TEXT NULL`);
+          logger.info("SQLite: columna monitoring_schedule.last_proximity_daily_run_at añadida");
+        }
       }
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);

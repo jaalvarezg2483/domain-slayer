@@ -18,10 +18,6 @@ const envSchema = z.object({
   TRANSPORTER: z.string().optional(),
   SSL_CHECK_TIMEOUT_MS: z.coerce.number().default(10_000),
   HTTP_CHECK_TIMEOUT_MS: z.coerce.number().default(8000),
-  /** Resumen opcional en búsqueda de biblioteca (OpenAI-compatible). */
-  OPENAI_API_KEY: z.string().optional(),
-  OPENAI_BASE_URL: z.string().optional(),
-  OPENAI_MODEL: z.string().default("gpt-4o-mini"),
   /** Correo tras chequeo programado (opcional). */
   SMTP_HOST: z.string().optional(),
   SMTP_PORT: z.coerce.number().optional(),

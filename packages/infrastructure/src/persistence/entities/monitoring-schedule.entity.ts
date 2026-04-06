@@ -62,6 +62,20 @@ export class MonitoringScheduleEntity {
   @Column({ name: "last_scheduled_run_at", type: "datetime", nullable: true })
   lastScheduledRunAt!: Date | null;
 
+  /**
+   * Chequeo diario solo en sitios con SSL/dominio en ventana del panel (≤10 días o vencido).
+   * Independiente de `enabled` del chequeo global.
+   */
+  @Column({ name: "proximity_daily_enabled", type: "boolean", default: false })
+  proximityDailyEnabled!: boolean;
+
+  /** Hora local del servidor (0–23) para el cron diario de proximidad. */
+  @Column({ name: "proximity_run_hour", type: "int", default: 7 })
+  proximityRunHour!: number;
+
+  @Column({ name: "last_proximity_daily_run_at", type: "datetime", nullable: true })
+  lastProximityDailyRunAt!: Date | null;
+
   @Column({ name: "updated_at", type: "datetime" })
   updatedAt!: Date;
 }

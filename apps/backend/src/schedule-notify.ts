@@ -2,16 +2,32 @@ import fs from "node:fs";
 import path from "node:path";
 import type { ServiceBroker } from "moleculer";
 import nodemailer from "nodemailer";
-import type { Alert, Site } from "@domain-slayer/domain";
+import type { Alert, AlertType, Site } from "@domain-slayer/domain";
 import type { MonitoringScheduleEntity } from "@domain-slayer/infrastructure";
 import {
+  appendRowText,
   buildExpiryEmailRowsFromSites,
   buildPurdyNotificationHtml,
   buildPurdyNotificationText,
+  fmtDateEs,
   LOGO_CID,
+  alertTypeLabel,
+  sortExpiryRowsByPanelUrgency,
   type PurdyEmailBuildInput,
   type PurdySiteEmailRow,
 } from "./purdy-notification-email.js";
+
+function isSslFamily(t: AlertType): boolean {
+  return t === "ssl_expiring" || t === "ssl_expired" || t === "ssl_error";
+}
+
+function isDomainFamily(t: AlertType): boolean {
+  return (
+    t === "domain_expiring" ||
+    t === "domain_unknown_expiry" ||
+    t === "domain_registry_differs_from_manual"
+  );
+}
 
 function smtpTransport() {
   const host = process.env.SMTP_HOST?.trim();
@@ -67,8 +83,211 @@ function mailAttachments(logoPath: string | null): { filename: string; path: str
   return [{ filename: "logo.png", path: logoPath, cid: LOGO_CID }];
 }
 
-/** Teams Incoming Webhook (Office 365 connector). */
-async function postTeams(webhookUrl: string, title: string, text: string, facts: { name: string; value: string }[]) {
+function inventoryOpenUrl(base: string | null | undefined): string | null {
+  const u = base?.trim();
+  if (!u) return null;
+  try {
+    return new URL(u.endsWith("/") ? u : `${u}/`).href;
+  } catch {
+    return u.endsWith("/") ? u : `${u}/`;
+  }
+}
+
+/** Misma información que la tabla del correo (sitio, dominio, SSL, dominio, cómo resolver, avisos del panel). */
+function buildTeamsAdaptiveCardContent(params: {
+  title: string;
+  intro: string;
+  expiryRows: PurdySiteEmailRow[];
+  opsOnlyRows: PurdySiteEmailRow[];
+  facts: { name: string; value: string }[];
+  appUrl: string | null;
+}): Record<string, unknown> {
+  const sorted = sortExpiryRowsByPanelUrgency(params.expiryRows);
+  const body: Record<string, unknown>[] = [
+    { type: "TextBlock", text: params.intro, wrap: true, weight: "Bolder", spacing: "None" },
+    { type: "TextBlock", text: params.title, size: "Large", weight: "Bolder", spacing: "Medium" },
+  ];
+
+  if (sorted.length > 0) {
+    body.push({
+      type: "TextBlock",
+      text: "1. Vencimientos (mismo criterio que el panel y el correo)",
+      weight: "Bolder",
+      size: "Default",
+      color: "Accent",
+      spacing: "Medium",
+      wrap: true,
+    });
+    for (const r of sorted) {
+      const rowItems: Record<string, unknown>[] = [
+        {
+          type: "TextBlock",
+          text: r.siteName,
+          weight: "Bolder",
+          size: "Medium",
+          wrap: true,
+        },
+        {
+          type: "TextBlock",
+          text: `Dominio: ${r.domain}`,
+          isSubtle: true,
+          size: "Small",
+          spacing: "None",
+          wrap: true,
+        },
+      ];
+      for (const l of r.dashboardExpiryLines ?? []) {
+        rowItems.push({
+          type: "TextBlock",
+          text: l.text,
+          wrap: true,
+          weight: "Bolder",
+          spacing: "Small",
+          color: l.urgency === "red" ? "Attention" : "Warning",
+        });
+      }
+      const sslNote = (r.sslResolutionNotes ?? "").trim() || "—";
+      const domNote = (r.domainResolutionNotes ?? "").trim() || "—";
+      rowItems.push({
+        type: "FactSet",
+        spacing: "Small",
+        facts: [
+          { title: "SSL vence", value: fmtDateEs(r.sslValidTo) },
+          { title: "Cómo resolver (SSL)", value: sslNote },
+          { title: "Dominio vence", value: fmtDateEs(r.domainExpiryFinal) },
+          { title: "Cómo resolver (dominio)", value: domNote },
+        ],
+      });
+      const other = r.alerts.filter((a) => !isSslFamily(a.alertType) && !isDomainFamily(a.alertType));
+      if (other.length > 0) {
+        const lines = other.map(
+          (a) => `• [${a.severity}] ${alertTypeLabel(a.alertType)}: ${a.message}`
+        );
+        rowItems.push({
+          type: "TextBlock",
+          text: `Otras alertas en este sitio:\n${lines.join("\n")}`,
+          wrap: true,
+          size: "Small",
+          isSubtle: true,
+          spacing: "Small",
+        });
+      }
+      body.push({
+        type: "Container",
+        style: "emphasis",
+        separator: true,
+        spacing: "Small",
+        items: rowItems,
+      });
+    }
+  } else {
+    body.push({
+      type: "TextBlock",
+      text: "Ningún sitio en la ventana de vencimiento del panel (mismo criterio que el correo).",
+      wrap: true,
+      isSubtle: true,
+      spacing: "Small",
+    });
+  }
+
+  if (params.opsOnlyRows.length > 0) {
+    body.push({
+      type: "TextBlock",
+      text: "2. Otras alertas (fuera de la ventana del panel)",
+      weight: "Bolder",
+      size: "Default",
+      color: "Accent",
+      spacing: "Large",
+      wrap: true,
+    });
+    for (const r of params.opsOnlyRows) {
+      const lines = r.alerts.map(
+        (a) => `• [${a.severity}] ${alertTypeLabel(a.alertType)}: ${a.message}`
+      );
+      body.push({
+        type: "Container",
+        style: "default",
+        separator: true,
+        spacing: "Small",
+        items: [
+          {
+            type: "TextBlock",
+            text: r.siteName,
+            weight: "Bolder",
+            wrap: true,
+          },
+          {
+            type: "TextBlock",
+            text: `Dominio: ${r.domain}`,
+            isSubtle: true,
+            size: "Small",
+            spacing: "None",
+            wrap: true,
+          },
+          {
+            type: "TextBlock",
+            text: lines.join("\n"),
+            wrap: true,
+            size: "Small",
+            spacing: "Small",
+          },
+        ],
+      });
+    }
+  }
+
+  const factLine = params.facts.map((f) => `${f.name}: ${f.value}`).join(" · ");
+  body.push({
+    type: "TextBlock",
+    text: factLine,
+    wrap: true,
+    size: "Small",
+    isSubtle: true,
+    spacing: "Large",
+  });
+
+  const inv = inventoryOpenUrl(params.appUrl);
+  const actions: Record<string, unknown>[] = [];
+  if (inv) {
+    actions.push({ type: "Action.OpenUrl", title: "Ver inventario / certificados", url: inv });
+  }
+
+  return {
+    $schema: "http://adaptivecards.io/schemas/adaptive-card.json",
+    type: "AdaptiveCard",
+    version: "1.4",
+    body,
+    ...(actions.length ? { actions } : {}),
+  };
+}
+
+/** Texto plano del MessageCard de respaldo (misma estructura que el cuerpo en texto del correo). */
+function buildTeamsLegacyPlainText(
+  intro: string,
+  expiryRows: PurdySiteEmailRow[],
+  opsOnlyRows: PurdySiteEmailRow[]
+): string {
+  const lines = [intro, ""];
+  if (expiryRows.length > 0) {
+    lines.push("--- Vencimientos (criterio panel) ---");
+    for (const r of sortExpiryRowsByPanelUrgency(expiryRows)) appendRowText(lines, r);
+  }
+  if (opsOnlyRows.length > 0) {
+    lines.push("--- Otras alertas (fuera de ventana panel) ---");
+    for (const r of opsOnlyRows) appendRowText(lines, r);
+  }
+  const app = publicAppUrl()?.trim();
+  if (app) lines.push("", `Inventario: ${app}`);
+  return lines.join("\n");
+}
+
+/** MessageCard clásico (conector entrante antiguo). */
+async function postTeamsMessageCard(
+  webhookUrl: string,
+  title: string,
+  text: string,
+  facts: { name: string; value: string }[]
+) {
   const body = {
     "@type": "MessageCard",
     "@context": "https://schema.org/extensions",
@@ -89,11 +308,49 @@ async function postTeams(webhookUrl: string, title: string, text: string, facts:
   }
 }
 
-function teamsTextWithSites(base: string, rows: PurdySiteEmailRow[]): string {
-  if (rows.length === 0) return base;
-  const siteLines = rows.map((r) => `• ${r.siteName} (${r.domain})`);
-  return `${base}\n\nSitios con alertas:\n${siteLines.join("\n")}`;
+/**
+ * Intenta Adaptive Card (como en Teams / Flujos de trabajo); si el extremo rechaza el formato, usa MessageCard.
+ */
+async function postTeams(
+  webhookUrl: string,
+  params: {
+    title: string;
+    intro: string;
+    expiryRows: PurdySiteEmailRow[];
+    opsOnlyRows: PurdySiteEmailRow[];
+    facts: { name: string; value: string }[];
+    appUrl: string | null;
+    /** Texto plano para el fallback MessageCard. */
+    legacyText: string;
+  }
+) {
+  const card = buildTeamsAdaptiveCardContent(params);
+  const adaptivePayload = {
+    type: "message",
+    attachments: [
+      {
+        contentType: "application/vnd.microsoft.card.adaptive",
+        content: card,
+      },
+    ],
+  };
+  const res = await fetch(webhookUrl, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(adaptivePayload),
+  });
+  if (res.ok) return;
+
+  const t = await res.text().catch(() => "");
+  const retry =
+    res.status === 400 || res.status === 406 || res.status === 415 || res.status === 422 || /card|adaptive|schema/i.test(t);
+  if (retry) {
+    await postTeamsMessageCard(webhookUrl, params.title, params.legacyText, params.facts);
+    return;
+  }
+  throw new Error(`Teams webhook ${res.status}: ${t.slice(0, 200)}`);
 }
+
 
 export async function sendScheduleNotifications(
   broker: ServiceBroker,
@@ -149,7 +406,11 @@ export async function sendScheduleNotifications(
     "",
     "Abra el inventario para ver el detalle.",
   ];
-  const textBody = teamsTextWithSites(textLines.join("\n"), [...expiryRows, ...opsOnlyRows]);
+  const textBody = buildTeamsLegacyPlainText(textLines.join("\n"), expiryRows, opsOnlyRows);
+  const teamsIntro =
+    expiryRows.length > 0
+      ? "⚠️ Alertas de vencimiento de certificados y dominio: verifique la lista. Cuando renueve, recuerde actualizarlo en el inventario. ⚠️"
+      : "Chequeo programado completado. No hay sitios en la ventana de vencimiento del panel; revise alertas operativas o el inventario si aplica.";
 
   const runAt = settings.lastScheduledRunAt;
   const facts = [
@@ -188,7 +449,15 @@ export async function sendScheduleNotifications(
   const teamsUrl = settings.teamsWebhookUrl?.trim();
   if (settings.notifyTeamsEnabled && teamsUrl) {
     try {
-      await postTeams(teamsUrl, "Estado sitios Web Purdy — Chequeo programado", textBody, facts);
+      await postTeams(teamsUrl, {
+        title: "Estado sitios Web Purdy — Chequeo programado",
+        intro: teamsIntro,
+        expiryRows,
+        opsOnlyRows,
+        facts,
+        appUrl: publicAppUrl(),
+        legacyText: textBody,
+      });
       teamsSent = true;
     } catch (e) {
       console.error("[schedule-notify] Teams:", e);
@@ -290,15 +559,18 @@ export async function sendTestNotifications(
       errors.push("Para probar Teams, pegue la URL del webhook entrante.");
     } else {
       try {
-        await postTeams(
-          teamsUrl,
-          "Estado sitios Web Purdy — Prueba",
-          teamsTextWithSites(
-            "Mensaje de prueba: el webhook de Teams recibe correctamente las alertas del chequeo programado.",
-            [...testExpiryRows, ...testOpsRows]
-          ),
-          [{ name: "Estado", value: "OK" }]
-        );
+        const testIntro =
+          "Mensaje de prueba: tarjeta con sitio, dominio, fechas SSL/dominio y notas «cómo resolver», igual que el correo.";
+        const testLegacy = buildTeamsLegacyPlainText(testIntro, testExpiryRows, testOpsRows);
+        await postTeams(teamsUrl, {
+          title: "Estado sitios Web Purdy — Prueba",
+          intro: testIntro,
+          expiryRows: testExpiryRows,
+          opsOnlyRows: testOpsRows,
+          facts: [{ name: "Estado", value: "OK (prueba)" }],
+          appUrl: publicAppUrl(),
+          legacyText: testLegacy,
+        });
         teamsSent = true;
       } catch (e) {
         errors.push(e instanceof Error ? `Teams: ${e.message}` : "Error Teams");
@@ -307,4 +579,88 @@ export async function sendTestNotifications(
   }
 
   return { emailSent, teamsSent, errors };
+}
+
+export type ProximityRecoveryNotifierItem = {
+  siteName: string;
+  domain: string;
+  prevSsl: Date | string | null;
+  newSsl: Date | string | null;
+  prevDom: Date | string | null;
+  newDom: Date | string | null;
+};
+
+function coerceNotifierDate(d: Date | string | null | undefined): Date | null {
+  if (d == null) return null;
+  if (d instanceof Date) return Number.isNaN(d.getTime()) ? null : d;
+  const x = new Date(d);
+  return Number.isNaN(x.getTime()) ? null : x;
+}
+
+/** Aviso positivo: sitio ya no está en ventana de proximidad tras chequeo diario (mismos canales que la programación). */
+export async function sendProximityRecoveryNotifications(
+  settings: MonitoringScheduleEntity,
+  items: ProximityRecoveryNotifierItem[]
+): Promise<{ emailSent: boolean; teamsSent: boolean }> {
+  if (items.length === 0) return { emailSent: false, teamsSent: false };
+
+  let emailSent = false;
+  let teamsSent = false;
+
+  const linesText: string[] = [];
+  const linesHtml: string[] = [];
+  for (const it of items) {
+    const ps = fmtDateEs(coerceNotifierDate(it.prevSsl));
+    const ns = fmtDateEs(coerceNotifierDate(it.newSsl));
+    const pd = fmtDateEs(coerceNotifierDate(it.prevDom));
+    const nd = fmtDateEs(coerceNotifierDate(it.newDom));
+    linesText.push(
+      `— ${it.siteName} (${it.domain})\n  SSL: ${ps} → ${ns}\n  Dominio: ${pd} → ${nd}`
+    );
+    linesHtml.push(
+      `<tr><td style="padding:8px 10px;border-bottom:1px solid #243044;vertical-align:top;"><strong>${it.siteName}</strong><br/><span style="color:#8b9aab;font-size:12px;">${it.domain}</span></td><td style="padding:8px 10px;font-size:12px;border-bottom:1px solid #243044;vertical-align:top;">SSL: ${ps} → <strong>${ns}</strong><br/>Dominio: ${pd} → <strong>${nd}</strong></td></tr>`
+    );
+  }
+
+  const intro =
+    "Tras el chequeo diario de sitios próximos a vencer (ventana del panel: ≤10 días o vencido), el certificado y/o el dominio ya no están en esa ventana. El inventario quedó actualizado con las fechas del último chequeo.";
+
+  const subject = `[Estado sitios Web Purdy] Renovación detectada · ${items.length} sitio(s)`;
+  const textBody = `${intro}\n\n${linesText.join("\n\n")}`;
+  const htmlBody = `<p style="margin:0 0 14px 0;line-height:1.45;">${intro}</p><table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="border-collapse:collapse;">${linesHtml.join("")}</table>`;
+
+  const recipients = parseEmails(settings.notifyEmails ?? "");
+  const from = process.env.SMTP_FROM?.trim() || process.env.SMTP_USER?.trim() || "noreply@localhost";
+  const transport = smtpTransport();
+
+  if (settings.notifyEmailEnabled !== false && transport && recipients.length > 0) {
+    try {
+      await transport.sendMail({
+        from,
+        to: recipients.join(", "),
+        subject,
+        text: textBody,
+        html: htmlBody,
+      });
+      emailSent = true;
+    } catch (e) {
+      console.error("[schedule-notify] SMTP (renovación proximidad):", e);
+    }
+  }
+
+  const teamsUrl = settings.teamsWebhookUrl?.trim();
+  if (settings.notifyTeamsEnabled && teamsUrl) {
+    try {
+      const appBase = publicAppUrl();
+      await postTeamsMessageCard(teamsUrl, "Renovación detectada — chequeo diario (proximidad)", `${intro}\n\n${linesText.join("\n\n")}`, [
+        { name: "Sitios", value: String(items.length) },
+        ...(appBase ? [{ name: "Inventario", value: appBase }] : []),
+      ]);
+      teamsSent = true;
+    } catch (e) {
+      console.error("[schedule-notify] Teams (renovación proximidad):", e);
+    }
+  }
+
+  return { emailSent, teamsSent };
 }

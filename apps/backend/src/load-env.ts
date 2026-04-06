@@ -11,8 +11,8 @@ const monorepoRootEnv = path.resolve(__dirname, "..", "..", "..", ".env");
 
 /**
  * Carga `.env` por cwd (`npm run dev --prefix apps/backend` deja cwd en `apps/backend`).
- * Sin `override`, la primera aparición de cada clave gana: un `OPENAI_API_KEY=` vacío en
- * `apps/backend/.env` impedía usar la clave del `.env` de la raíz.
+ * Sin `override`, la primera aparición de cada clave gana: una variable vacía en
+ * `apps/backend/.env` podía anular el valor bueno del `.env` de la raíz.
  * Al final cargamos el `.env` de la raíz del repo con `override: true` para que gane lo definido ahí.
  */
 for (const envPath of [

@@ -33,6 +33,12 @@ function scheduleToDto(e: MonitoringScheduleEntity) {
     notifyTeamsEnabled: Boolean(e.notifyTeamsEnabled),
     notifyOn: e.notifyOn,
     lastScheduledRunAt: e.lastScheduledRunAt ? e.lastScheduledRunAt.toISOString() : null,
+    proximityDailyEnabled: Boolean(e.proximityDailyEnabled),
+    proximityRunHour:
+      e.proximityRunHour != null && !Number.isNaN(Number(e.proximityRunHour))
+        ? Math.min(23, Math.max(0, Math.floor(Number(e.proximityRunHour))))
+        : 7,
+    lastProximityDailyRunAt: e.lastProximityDailyRunAt ? e.lastProximityDailyRunAt.toISOString() : null,
     updatedAt: e.updatedAt.toISOString(),
   };
 }
@@ -97,6 +103,11 @@ export function registerMonitoringScheduleHttp(
       if (typeof b.notifyEmailEnabled === "boolean") row.notifyEmailEnabled = b.notifyEmailEnabled;
       if (typeof b.notifyTeamsEnabled === "boolean") row.notifyTeamsEnabled = b.notifyTeamsEnabled;
       if (b.notifyOn === "always" || b.notifyOn === "alerts_only") row.notifyOn = b.notifyOn;
+      if (typeof b.proximityDailyEnabled === "boolean") row.proximityDailyEnabled = b.proximityDailyEnabled;
+      if (b.proximityRunHour !== undefined && b.proximityRunHour !== null) {
+        const ph = Number(b.proximityRunHour);
+        if (!Number.isNaN(ph)) row.proximityRunHour = Math.min(23, Math.max(0, Math.floor(ph)));
+      }
       if (row.scheduleMode === "cron" && !cron.validate(row.cronExpression ?? "")) {
         res.status(422).json({ error: "Expresión cron no válida (5 campos: min hora día mes día-semana)." });
         return;

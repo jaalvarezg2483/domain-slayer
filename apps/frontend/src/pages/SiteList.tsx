@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { api } from "../api";
 import { Badge } from "../components/Badge";
+import { CheckAllWaitOverlay } from "../components/CheckAllWaitOverlay";
 import { SiteActiveBadge } from "../components/SiteActiveBadge";
 import { IconCheckCircle, IconRefreshCw, IconSearch } from "../components/NavIcons";
 import { TablePagination } from "../components/TablePagination";
@@ -26,7 +27,12 @@ export function SiteList() {
   const load = (p: number, q: string) => {
     setErr(null);
     return api.sites
-      .list({ search: q, limit: PAGE_SIZE, offset: (p - 1) * PAGE_SIZE })
+      .list({
+        search: q,
+        limit: PAGE_SIZE,
+        offset: (p - 1) * PAGE_SIZE,
+        sortBy: "proximity",
+      })
       .then((r) => {
         setItems(r.items as SiteRow[]);
         setTotal(r.total);
@@ -70,15 +76,10 @@ export function SiteList() {
 
   return (
     <div className="stack" aria-busy={checkingAll}>
+      <CheckAllWaitOverlay open={checkingAll} siteCount={total} />
       <div className="row-between">
         <h1>Sitios ({total})</h1>
       </div>
-      {checkingAll && (
-        <div className="loading-banner" role="status" aria-live="polite">
-          <span className="loading-banner__orbit" aria-hidden />
-          <span>Revisando</span>
-        </div>
-      )}
       {checkSuccessOpen && (
         <div className="flash-notice flash-notice--success" role="status" aria-live="polite">
           <span className="flash-notice__icon" aria-hidden>

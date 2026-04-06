@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
-import { NavLink, Outlet, useNavigate } from "react-router-dom";
+import { NavLink, Outlet, useNavigate, useLocation } from "react-router-dom";
 import { hasAuthToken, setAuthToken } from "../api";
+import { useAuthMode } from "../auth-context";
 import { AppBrand } from "./AppBrand";
 import {
   IconAlerts,
@@ -21,58 +22,136 @@ function navClassNew({ isActive }: { isActive: boolean }) {
   return isActive ? "nav-link nav-link--new active" : "nav-link nav-link--new";
 }
 
+function IconMenuHamburger() {
+  return (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
+      <path d="M4 6h16M4 12h16M4 18h16" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function IconMenuClose() {
+  return (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
+      <path d="M6 6l12 12M18 6L6 18" strokeLinecap="round" />
+    </svg>
+  );
+}
+
 export function Layout() {
   const nav = useNavigate();
+  const location = useLocation();
+  const { authRequired } = useAuthMode();
   const [showLogout, setShowLogout] = useState(false);
+  const [navOpen, setNavOpen] = useState(false);
 
   useEffect(() => {
     setShowLogout(hasAuthToken());
   }, []);
 
+  useEffect(() => {
+    setNavOpen(false);
+  }, [location.pathname, location.search]);
+
+  useEffect(() => {
+    if (!navOpen) return;
+    const mq = window.matchMedia("(max-width: 900px)");
+    if (!mq.matches) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, [navOpen]);
+
+  useEffect(() => {
+    const mq = window.matchMedia("(min-width: 901px)");
+    const close = () => {
+      if (mq.matches) setNavOpen(false);
+    };
+    mq.addEventListener("change", close);
+    close();
+    return () => mq.removeEventListener("change", close);
+  }, []);
+
+  useEffect(() => {
+    if (!navOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setNavOpen(false);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [navOpen]);
+
+  const closeNav = () => setNavOpen(false);
+
   return (
-    <div className="layout">
-      <aside className="sidebar">
+    <div className={`layout-root${navOpen ? " layout-root--nav-open" : ""}`}>
+      <header className="layout-mobile-bar">
+        <button
+          type="button"
+          className="layout-nav-toggle btn ghost"
+          aria-expanded={navOpen}
+          aria-controls="app-sidebar-nav"
+          onClick={() => setNavOpen((o) => !o)}
+        >
+          {navOpen ? <IconMenuClose /> : <IconMenuHamburger />}
+          <span className="layout-nav-toggle__label">{navOpen ? "Cerrar" : "Menú"}</span>
+        </button>
+        <span className="layout-mobile-bar__title">Inventario Sitios Web</span>
+      </header>
+
+      <button
+        type="button"
+        className="layout-nav-backdrop"
+        aria-label="Cerrar menú de navegación"
+        tabIndex={navOpen ? 0 : -1}
+        onClick={closeNav}
+      />
+
+      <div className="layout">
+      <aside id="app-sidebar-nav" className="sidebar">
         <AppBrand variant="sidebar" />
         <nav className="nav" aria-label="Principal">
           <div className="nav-panel">
             <p className="nav-section-label">Menú</p>
-            <NavLink end className={navClass} to="/">
+            <NavLink end className={navClass} to="/" onClick={closeNav}>
               <span className="nav-link__icon">
                 <IconDashboard />
               </span>
               <span className="nav-link__text">Dashboard</span>
             </NavLink>
-            <NavLink className={navClass} to="/sites">
+            <NavLink className={navClass} to="/sites" onClick={closeNav}>
               <span className="nav-link__icon">
                 <IconSites />
               </span>
               <span className="nav-link__text">Sitios</span>
             </NavLink>
-            <NavLink className={navClass} to="/library">
+            <NavLink className={navClass} to="/library" onClick={closeNav}>
               <span className="nav-link__icon">
                 <IconLibrary />
               </span>
               <span className="nav-link__text">Biblioteca</span>
             </NavLink>
-            <NavLink className={navClass} to="/assistant">
+            <NavLink className={navClass} to="/assistant" onClick={closeNav}>
               <span className="nav-link__icon">
                 <IconAssistant />
               </span>
               <span className="nav-link__text">Búsqueda inteligente</span>
             </NavLink>
-            <NavLink className={navClass} to="/alerts">
+            <NavLink className={navClass} to="/alerts" onClick={closeNav}>
               <span className="nav-link__icon">
                 <IconAlerts />
               </span>
               <span className="nav-link__text">Alertas</span>
             </NavLink>
-            <NavLink className={navClass} to="/settings/monitoring">
+            <NavLink className={navClass} to="/settings/monitoring" onClick={closeNav}>
               <span className="nav-link__icon">
                 <IconClock />
               </span>
               <span className="nav-link__text">Programación</span>
             </NavLink>
-            <NavLink className={navClass} to="/settings/users">
+            <NavLink className={navClass} to="/settings/users" onClick={closeNav}>
               <span className="nav-link__icon">
                 <IconUsers />
               </span>
@@ -81,7 +160,7 @@ export function Layout() {
 
             <div className="nav-panel__divider" role="presentation" />
 
-            <NavLink className={navClassNew} to="/sites/new">
+            <NavLink className={navClassNew} to="/sites/new" onClick={closeNav}>
               <span className="nav-link__icon">
                 <IconPlusSite />
               </span>
@@ -95,6 +174,7 @@ export function Layout() {
                   type="button"
                   className="btn ghost small nav-panel__logout"
                   onClick={() => {
+                    closeNav();
                     setAuthToken(null);
                     setShowLogout(false);
                     void nav("/login", { replace: true });
@@ -109,9 +189,17 @@ export function Layout() {
       </aside>
       <main className="main">
         <div className="main-inner">
+          {!authRequired ? (
+            <div className="card layout-auth-banner" role="status">
+              <strong>Sin inicio de sesión obligatorio:</strong> el servidor no tiene configurado{" "}
+              <code className="small">JWT_SECRET</code>. Cualquiera que abra esta URL puede usar la aplicación. Para
+              exigir login, defina <code className="small">JWT_SECRET</code> (y usuarios) en el backend y reinicie.
+            </div>
+          ) : null}
           <Outlet />
         </div>
       </main>
+      </div>
     </div>
   );
 }
