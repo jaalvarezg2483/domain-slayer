@@ -667,78 +667,123 @@ body {
   font-size: 0.78em;
 }
 
+/* Fondo plano = mismo tono que --bg para que el PNG (mix-blend lighten) no muestre «caja» */
 .login-standalone {
   min-height: 100vh;
+  min-height: 100dvh;
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 1.25rem;
   box-sizing: border-box;
+  background: var(--bg);
 }
+
 .login-standalone--loading {
   padding: 2rem;
   justify-content: center;
 }
+
 .login-standalone__inner {
   width: 100%;
   max-width: min(24rem, 100%);
   display: flex;
   flex-direction: column;
-  align-items: stretch;
+  align-items: center;
   gap: 0.85rem;
 }
+
 .login-standalone__brand {
+  width: 100%;
+  max-width: min(24rem, 100%);
   text-align: center;
 }
+
 .login-standalone__brand .brand {
+  width: 100%;
+  max-width: 100%;
+  text-align: center;
   border-bottom: 1px solid var(--border);
   padding-bottom: 0.55rem;
 }
+
 .login-standalone__brand .brand-logo-row {
   min-height: 3.75rem;
   display: flex;
   align-items: center;
   justify-content: center;
+  width: 100%;
 }
+
 .login-standalone__brand .brand-logo {
   height: auto;
   width: min(100%, 20rem);
   max-height: 4.5rem;
   object-fit: contain;
+  object-position: center;
+  display: block;
+  mix-blend-mode: lighten;
 }
+
+@supports not (mix-blend-mode: lighten) {
+  .login-standalone__brand .brand-logo {
+    mix-blend-mode: normal;
+    opacity: 0.92;
+    filter: brightness(1.08);
+  }
+}
+
+/* Subtítulo siempre centrado en cualquier ancho (móvil / escritorio); el sidebar sigue con sus reglas en @media 900px */
 .login-standalone__brand .brand-tagline {
-  font-size: 0.82rem;
-  font-weight: 600;
-  line-height: 1.35;
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
   margin: 0.45rem 0 0;
-  padding: 0 0.25rem;
+  padding: 0 clamp(0.35rem, 3vw, 0.75rem);
+  font-size: clamp(0.76rem, 2.8vw, 0.82rem);
+  font-weight: 600;
+  line-height: 1.4;
+  text-align: center;
+  text-wrap: balance;
+  overflow-wrap: break-word;
+  hyphens: auto;
 }
+
 .login-card {
   width: 100%;
-  max-width: none;
+  max-width: min(20rem, 100%);
   margin: 0;
   padding: 0.75rem 0.9rem;
   border-radius: 10px;
 }
+
 .login-card__title {
   margin: 0 0 0.55rem;
   font-size: 1rem;
   font-weight: 600;
 }
+
 .login-form {
   gap: 0.55rem;
 }
+
 .login-form .modal-notes-label {
   margin-top: 0;
   gap: 0.28rem;
 }
+
 .login-form .modal-notes-label-text {
   font-size: 0.78rem;
 }
+
 .login-form .input {
+  width: 100%;
+  max-width: 100%;
   padding: 0.4rem 0.5rem;
   font-size: 0.875rem;
 }
+
 .login-card .login-submit {
   margin-top: 0.2rem;
   padding: 0.42rem 0.75rem;
@@ -748,22 +793,27 @@ body {
   border: 1px solid rgba(100, 210, 255, 0.38);
   background: rgba(100, 210, 255, 0.07);
   color: #a8e6ff;
+  width: 100%;
 }
+
 .login-card .login-submit:hover {
   background: rgba(100, 210, 255, 0.13);
   border-color: rgba(100, 210, 255, 0.5);
   color: #d2f2ff;
   filter: none;
 }
+
 .login-card .login-submit:focus-visible {
   outline: none;
   border-color: rgba(100, 210, 255, 0.65);
   box-shadow: 0 0 0 3px rgba(100, 210, 255, 0.15);
 }
+
 .login-card .login-submit:disabled {
   opacity: 0.55;
   cursor: not-allowed;
 }
+
 .login-card .card.error {
   padding: 0.45rem 0.55rem;
   font-size: 0.82rem;
@@ -2546,6 +2596,17 @@ select.input {
   }
   .form-grid .span-2 {
     grid-column: span 1;
+  }
+
+  /* Login: el bloque móvil del sidebar pone .brand-tagline a la izquierda; aquí debe seguir centrado */
+  .login-standalone__brand .brand-tagline {
+    text-align: center;
+  }
+  .login-standalone__brand .brand-logo-row {
+    justify-content: center;
+  }
+  .login-standalone__brand .brand-org-text {
+    text-align: center;
   }
 }
 

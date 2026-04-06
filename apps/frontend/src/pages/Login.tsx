@@ -66,35 +66,35 @@ export function Login() {
           <AppBrand variant="standalone" />
         </header>
         <div className="card login-card">
-        <h1 className="login-card__title">Iniciar sesión</h1>
-        <form onSubmit={(e) => void submit(e)} className="stack login-form">
-          <label className="modal-notes-label">
-            <span className="modal-notes-label-text">Correo</span>
-            <input
-              className="input"
-              type="email"
-              autoComplete="username"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-            />
-          </label>
-          <label className="modal-notes-label">
-            <span className="modal-notes-label-text">Contraseña</span>
-            <input
-              className="input"
-              type="password"
-              autoComplete="current-password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-            />
-          </label>
-          {err ? <div className="card error">{err}</div> : null}
-          <button type="submit" className="btn login-submit">
-            Entrar
-          </button>
-        </form>
+          <h1 className="login-card__title">Iniciar sesión</h1>
+          <form onSubmit={(e) => void submit(e)} className="stack login-form">
+            <label className="modal-notes-label">
+              <span className="modal-notes-label-text">Correo</span>
+              <input
+                className="input"
+                type="email"
+                autoComplete="username"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+              />
+            </label>
+            <label className="modal-notes-label">
+              <span className="modal-notes-label-text">Contraseña</span>
+              <input
+                className="input"
+                type="password"
+                autoComplete="current-password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+              />
+            </label>
+            {err ? <div className="card error">{err}</div> : null}
+            <button type="submit" className="btn login-submit">
+              Entrar
+            </button>
+          </form>
         </div>
       </div>
     </div>
