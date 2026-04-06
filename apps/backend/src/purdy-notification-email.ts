@@ -37,10 +37,6 @@ function fmtDateTimeEs(d: Date | string | null | undefined): string {
   }).format(dt);
 }
 
-function nl2br(s: string): string {
-  return escapeHtml(s).replace(/\r\n|\n|\r/g, "<br/>");
-}
-
 export function alertTypeLabel(t: AlertType): string {
   const m: Partial<Record<AlertType, string>> = {
     ssl_expiring: "SSL por vencer",
@@ -428,7 +424,7 @@ function buildDashboardStatsGridHtml(input: PurdyEmailBuildInput): string {
 }
 
 export function buildPurdyNotificationHtml(input: PurdyEmailBuildInput): string {
-  const { mode, sitesChecked, reason, critical, warning, openTotal, expiryRows, useLogoCid } = input;
+  const { mode, sitesChecked, reason, openTotal, expiryRows, useLogoCid } = input;
   const invertEmailLogo = input.invertEmailLogo === true;
   const appUrl = input.publicAppUrl?.trim() || "";
   const totalDetailRows = expiryRows.length;

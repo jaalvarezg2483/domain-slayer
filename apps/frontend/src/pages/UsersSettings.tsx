@@ -120,13 +120,6 @@ export function UsersSettings() {
   return (
     <div className="stack narrow">
       <h1>Usuarios autorizados</h1>
-      <p className="muted small">
-        Solo quien tenga cuenta aquí puede entrar cuando el servidor tiene <code style={{ color: "var(--muted)" }}>JWT_SECRET</code>{" "}
-        definido. El primer usuario puede crearse con{" "}
-        <code style={{ color: "var(--muted)" }}>INITIAL_ADMIN_EMAIL</code> /{" "}
-        <code style={{ color: "var(--muted)" }}>INITIAL_ADMIN_PASSWORD</code> al arrancar con la tabla vacía; el resto se
-        gestiona desde esta pantalla.
-      </p>
 
       {err ? <div className="card error">{err}</div> : null}
       {ok ? (
@@ -175,7 +168,7 @@ export function UsersSettings() {
       <div className="card">
         <h2 style={{ fontSize: "1.05rem", margin: "0 0 0.75rem" }}>Usuarios actuales</h2>
         {items.length === 0 ? (
-          <p className="muted small">No hay usuarios. Defina INITIAL_ADMIN_* y reinicie el backend, o cree uno arriba.</p>
+          <p className="muted small">No hay usuarios todavía. Puede crear el primero con el formulario de arriba.</p>
         ) : (
           <ul className="users-list" style={{ listStyle: "none", margin: 0, padding: 0 }}>
             {items.map((u) => (
