@@ -1601,6 +1601,36 @@ body {
   outline-offset: 2px;
 }
 
+/* Modo claro: texto oscuro legible; la regla genérica `.btn:hover` no debe dejar el label en celeste sobre fondo claro */
+[data-theme="light"] .expiry-solution-btn {
+  border: 1px solid rgba(37, 99, 235, 0.3);
+  background: linear-gradient(180deg, #ffffff 0%, #f1f5f9 100%);
+  color: #0f172a;
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.95) inset,
+    0 1px 4px rgba(15, 23, 42, 0.07);
+}
+
+[data-theme="light"] .expiry-solution-btn:hover,
+[data-theme="light"] .btn.expiry-solution-btn:hover:not(:disabled) {
+  background: linear-gradient(180deg, #eff6ff 0%, #e2e8f0 100%);
+  border-color: rgba(37, 99, 235, 0.5);
+  color: #0a0f18;
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 1) inset,
+    0 3px 14px rgba(37, 99, 235, 0.14);
+  filter: none;
+}
+
+[data-theme="light"] .expiry-solution-btn:active {
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08);
+}
+
+[data-theme="light"] .expiry-solution-btn:focus-visible {
+  outline: 2px solid rgba(37, 99, 235, 0.55);
+  outline-offset: 2px;
+}
+
 h1 {
   font-size: 1.5rem;
   font-weight: 600;

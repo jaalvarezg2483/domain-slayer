@@ -101,8 +101,8 @@ export function Dashboard() {
           <>
             <p className="muted small" style={{ marginBottom: "0.75rem" }}>
               Las filas salen de las fechas del último chequeo. Tras renovar, ejecute un chequeo en el sitio: si dominio y
-              SSL quedan fuera de la ventana de aviso, la alerta desaparece sola. Use «Ver notas» para notas de resolución
-              guardadas en el servidor.
+              SSL quedan fuera de la ventana de aviso, la alerta desaparece sola. Use el botón «Notas» para ver las de
+              resolución guardadas en el servidor.
             </p>
             <div className="table-scroll table-scroll--dashboard-fit">
             <table className="table expiry-alert-table table--dashboard-expiry">
@@ -148,7 +148,7 @@ export function Dashboard() {
                           <span className="expiry-solution-btn__icon" aria-hidden>
                             <IconEye />
                           </span>
-                          Ver notas
+                          Notas
                         </button>
                         {hasNotes ? (
                           <div className="muted small expiry-notes-hint" title="Hay notas de resolución">
