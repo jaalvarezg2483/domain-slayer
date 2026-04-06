@@ -196,7 +196,11 @@ export function SiteList() {
                 <td
                   className={sslExpiryCellClass(s)}
                   title={
-                    s.sslValidToFinal || s.sslValidTo ? "Fin de validez del certificado (fecha que usa el sistema)" : undefined
+                    s.sslValidToFinal || s.sslValidTo
+                      ? s.sslExpirySource === "manual"
+                        ? "Fin de validez: origen manual — puede diferir del chequeo TLS y del navegador. Revise la ficha del sitio."
+                        : "Fin de validez del certificado (fecha que usa el sistema)"
+                      : undefined
                   }
                 >
                   {formatListDate(s.sslValidToFinal ?? s.sslValidTo)}

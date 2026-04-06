@@ -26,6 +26,38 @@ function hostnameMatchesCert(host: string, cert: tls.DetailedPeerCertificate): b
   return false;
 }
 
+/** Cadena emisor ← hoja (Node enlaza issuerCertificate; corta ciclos). */
+function collectCertificateChain(peer: tls.DetailedPeerCertificate): tls.DetailedPeerCertificate[] {
+  const chain: tls.DetailedPeerCertificate[] = [];
+  let current: tls.DetailedPeerCertificate | undefined = peer;
+  const seen = new WeakSet<tls.DetailedPeerCertificate>();
+  while (current && Object.keys(current).length > 0) {
+    if (seen.has(current)) break;
+    seen.add(current);
+    chain.push(current);
+    const issuer = current.issuerCertificate as tls.DetailedPeerCertificate | undefined;
+    if (!issuer || issuer === current) break;
+    current = issuer;
+  }
+  return chain;
+}
+
+/**
+ * Certificado que realmente identifica al servicio para el SNI: entre los de la cadena que coinciden con el
+ * hostname, se elige el que **antes** vence (normalmente el leaf). Así no usamos por error un intermedio
+ * con `notAfter` más lejano que el del sitio (caso que desvirtúa alertas frente al navegador).
+ */
+function pickServiceCertificate(peer: tls.DetailedPeerCertificate, servername: string): tls.DetailedPeerCertificate {
+  const chain = collectCertificateChain(peer);
+  const matching = chain.filter((c) => hostnameMatchesCert(servername, c));
+  if (matching.length === 0) return peer;
+  return matching.reduce((a, b) => {
+    const ta = parseCertDates(a).to?.getTime() ?? Number.MAX_SAFE_INTEGER;
+    const tb = parseCertDates(b).to?.getTime() ?? Number.MAX_SAFE_INTEGER;
+    return tb < ta ? b : a;
+  });
+}
+
 export class SslInspectorNode implements SslInspector {
   constructor(private readonly timeoutMs: number) {}
 
@@ -74,8 +106,8 @@ export class SslInspectorNode implements SslInspector {
       });
 
       socket.on("secureConnect", () => {
-        let cert = socket.getPeerCertificate(true) as tls.DetailedPeerCertificate;
-        if (!cert || Object.keys(cert).length === 0) {
+        const raw = socket.getPeerCertificate(true) as tls.DetailedPeerCertificate;
+        if (!raw || Object.keys(raw).length === 0) {
           done({
             subject: null,
             issuer: null,
@@ -88,6 +120,7 @@ export class SslInspectorNode implements SslInspector {
           });
           return;
         }
+        const cert = pickServiceCertificate(raw, servername);
         const { from, to } = parseCertDates(cert);
         const match = hostnameMatchesCert(servername, cert);
         const serial = cert.serialNumber ? String(cert.serialNumber) : null;

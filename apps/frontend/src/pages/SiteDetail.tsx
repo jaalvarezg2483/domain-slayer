@@ -223,6 +223,13 @@ export function SiteDetail() {
 
   const report = buildOperationalReport(site);
 
+  const DAY_MS = 86_400_000;
+  const sslManualDisagreesWithTls =
+    site.sslExpirySource === "manual" &&
+    site.sslValidTo &&
+    site.sslValidToFinal &&
+    Math.abs(new Date(site.sslValidTo).getTime() - new Date(site.sslValidToFinal).getTime()) > DAY_MS;
+
   return (
     <div className="stack" aria-busy={checking}>
       {checking && (
@@ -301,6 +308,28 @@ export function SiteDetail() {
         <h2>Información</h2>
 
         <h3 className="resolution-section-title">Certificado SSL</h3>
+        {sslManualDisagreesWithTls ? (
+          <div
+            role="status"
+            style={{
+              marginBottom: "1rem",
+              padding: "0.75rem 1rem",
+              borderRadius: 6,
+              border: "1px solid var(--warn)",
+              background: "rgba(255, 159, 10, 0.1)",
+            }}
+          >
+            <strong>La fecha que usa el sistema no coincide con el último chequeo TLS</strong>
+            <p className="muted small" style={{ margin: "0.5rem 0 0 0" }}>
+              Origen: <strong>manual</strong>. El panel muestra{" "}
+              <strong>{new Date(site.sslValidToFinal!).toLocaleString("es-ES", esDateTime)}</strong> como fin de validez,
+              pero el chequeo obtuvo{" "}
+              <strong>{new Date(site.sslValidTo).toLocaleString("es-ES", esDateTime)}</strong> (alineado con lo que suele
+              ver el navegador). Para confiar en el certificado real, abra «Editar sitio» y elimine o corrija la fecha SSL
+              manual, o deje que prevalezca la detección automática tras un chequeo correcto.
+            </p>
+          </div>
+        ) : null}
         <div className="resolution-split">
           <div className="resolution-readonly">
             <p className="muted small" style={{ marginTop: 0 }}>
