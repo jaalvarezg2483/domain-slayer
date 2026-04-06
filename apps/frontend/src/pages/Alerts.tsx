@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
+import { useAuthMode } from "../auth-context";
 import { api } from "../api";
 import { Badge } from "../components/Badge";
 import { ConfirmModal } from "../components/ConfirmModal";
+import { isAdminSession } from "../lib/auth-session";
 import { labelAlertType } from "../lib/status-labels";
 import type { AlertRow, SiteRow } from "../types";
 
@@ -27,6 +29,8 @@ function sortSiteIds(ids: string[], sitesById: Map<string, SiteMeta>): string[] 
 }
 
 export function Alerts() {
+  const { authRequired } = useAuthMode();
+  const canResolve = !authRequired || isAdminSession();
   const [items, setItems] = useState<AlertRow[]>([]);
   const [sitesById, setSitesById] = useState<Map<string, SiteMeta>>(new Map());
   const [err, setErr] = useState<string | null>(null);
@@ -148,11 +152,11 @@ export function Alerts() {
     <div className="stack">
       <div className="row-between">
         <h1>Alertas abiertas</h1>
-        {items.length > 0 && (
+        {canResolve && items.length > 0 ? (
           <button type="button" className="btn" disabled={busy} onClick={() => setResolveAllOpen(true)}>
             Limpiar todas
           </button>
-        )}
+        ) : null}
       </div>
       {err && <div className="card error">{err}</div>}
 
@@ -236,7 +240,7 @@ export function Alerts() {
                         <th>Severidad</th>
                         <th>Tipo</th>
                         <th>Mensaje</th>
-                        <th></th>
+                        {canResolve ? <th></th> : null}
                       </tr>
                     </thead>
                     <tbody>
@@ -247,15 +251,17 @@ export function Alerts() {
                           </td>
                           <td className="muted small">{labelAlertType(a.alertType)}</td>
                           <td>{a.message}</td>
-                          <td>
-                            <button
-                              type="button"
-                              className="btn small"
-                              onClick={() => void api.alerts.resolve(a.id).then(load)}
-                            >
-                              Resolver
-                            </button>
-                          </td>
+                          {canResolve ? (
+                            <td>
+                              <button
+                                type="button"
+                                className="btn small"
+                                onClick={() => void api.alerts.resolve(a.id).then(load)}
+                              >
+                                Resolver
+                              </button>
+                            </td>
+                          ) : null}
                         </tr>
                       ))}
                     </tbody>
@@ -268,7 +274,7 @@ export function Alerts() {
       </div>
 
       <ConfirmModal
-        open={resolveAllOpen}
+        open={canResolve && resolveAllOpen}
         title="Marcar alertas como resueltas"
         message="¿Marcar como resueltas todas las alertas abiertas? No se borran del historial; solo dejan de figurar como pendientes."
         confirmLabel="Sí, marcar todas"

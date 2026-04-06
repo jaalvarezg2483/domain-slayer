@@ -1,9 +1,16 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { NavLink, Outlet, useNavigate, useLocation } from "react-router-dom";
+import {
+  getSessionDisplayName,
+  readAuthPayload,
+  setSessionDisplayName,
+  sidebarUserLabel,
+} from "../lib/auth-session";
 import { hasAuthToken, setAuthToken } from "../api";
 import { useAuthMode } from "../auth-context";
 import { AppBrand } from "./AppBrand";
 import { SessionTransitionOverlay } from "./SessionTransitionOverlay";
+import { ThemeToggle } from "./ThemeToggle";
 import {
   IconAlerts,
   IconAssistant,
@@ -47,10 +54,26 @@ export function Layout() {
   const [showLogout, setShowLogout] = useState(false);
   const [navOpen, setNavOpen] = useState(false);
   const [sessionSnail, setSessionSnail] = useState<"welcome" | "goodbye" | null>(null);
+  const [displayNameRev, setDisplayNameRev] = useState(0);
 
   useEffect(() => {
     setShowLogout(hasAuthToken());
   }, []);
+
+  useEffect(() => {
+    const onDisplayName = () => setDisplayNameRev((n) => n + 1);
+    window.addEventListener("ds-display-name", onDisplayName);
+    return () => window.removeEventListener("ds-display-name", onDisplayName);
+  }, []);
+
+  /** Si hay JWT con nombre pero aún no hay caché (p. ej. recarga), alinear caché para el menú. */
+  useEffect(() => {
+    const p = readAuthPayload();
+    if (!p?.name.trim()) return;
+    if (!getSessionDisplayName()) {
+      setSessionDisplayName(p.name.trim());
+    }
+  }, [location.pathname, showLogout, displayNameRev]);
 
   /**
    * Bienvenida tras login: sin `return () => clearTimeout` para que React Strict Mode no cancele el cierre y deje el overlay colgado.
@@ -104,6 +127,9 @@ export function Layout() {
 
   const closeNav = () => setNavOpen(false);
 
+  const session = useMemo(() => readAuthPayload(), [location.pathname, showLogout, displayNameRev]);
+  const isAdmin = !authRequired || session?.role === "admin";
+
   return (
     <div className={`layout-root${navOpen ? " layout-root--nav-open" : ""}`}>
       {sessionSnail ? <SessionTransitionOverlay open mode={sessionSnail} /> : null}
@@ -118,6 +144,7 @@ export function Layout() {
           {navOpen ? <IconMenuClose /> : <IconMenuHamburger />}
           <span className="layout-nav-toggle__label">{navOpen ? "Cerrar" : "Menú"}</span>
         </button>
+        <ThemeToggle compact className="layout-mobile-bar__theme" />
         <span className="layout-mobile-bar__title">Inventario Sitios Web</span>
       </header>
 
@@ -131,7 +158,12 @@ export function Layout() {
 
       <div className="layout">
       <aside id="app-sidebar-nav" className="sidebar">
-        <AppBrand variant="sidebar" />
+        <div className="sidebar__top">
+          <AppBrand variant="sidebar" />
+          <div className="sidebar__theme-desktop-only">
+            <ThemeToggle compact />
+          </div>
+        </div>
         <nav className="nav" aria-label="Principal">
           <div className="nav-panel">
             <p className="nav-section-label">Menú</p>
@@ -171,27 +203,40 @@ export function Layout() {
               </span>
               <span className="nav-link__text">Alertas</span>
             </NavLink>
-            <NavLink className={navClass} to="/settings/monitoring" onClick={closeNav}>
-              <span className="nav-link__icon">
-                <IconClock />
-              </span>
-              <span className="nav-link__text">Programación</span>
-            </NavLink>
-            <NavLink className={navClass} to="/settings/users" onClick={closeNav}>
-              <span className="nav-link__icon">
-                <IconUsers />
-              </span>
-              <span className="nav-link__text">Usuarios</span>
-            </NavLink>
+            {isAdmin ? (
+              <NavLink className={navClass} to="/settings/monitoring" onClick={closeNav}>
+                <span className="nav-link__icon">
+                  <IconClock />
+                </span>
+                <span className="nav-link__text">Programación</span>
+              </NavLink>
+            ) : null}
+            {isAdmin ? (
+              <NavLink className={navClass} to="/settings/users" onClick={closeNav}>
+                <span className="nav-link__icon">
+                  <IconUsers />
+                </span>
+                <span className="nav-link__text">Usuarios</span>
+              </NavLink>
+            ) : null}
 
-            <div className="nav-panel__divider" role="presentation" />
+            {isAdmin ? (
+              <>
+                <div className="nav-panel__divider" role="presentation" />
+                <NavLink className={navClassNew} to="/sites/new" onClick={closeNav}>
+                  <span className="nav-link__icon">
+                    <IconPlusSite />
+                  </span>
+                  <span className="nav-link__text">Nuevo sitio</span>
+                </NavLink>
+              </>
+            ) : null}
 
-            <NavLink className={navClassNew} to="/sites/new" onClick={closeNav}>
-              <span className="nav-link__icon">
-                <IconPlusSite />
-              </span>
-              <span className="nav-link__text">Nuevo sitio</span>
-            </NavLink>
+            {showLogout && session ? (
+              <p className="nav-panel__display-name muted small" style={{ margin: "0.35rem 0.45rem 0" }}>
+                {sidebarUserLabel(session)}
+              </p>
+            ) : null}
 
             {showLogout ? (
               <>
@@ -206,6 +251,7 @@ export function Layout() {
                     setSessionSnail("goodbye");
                     window.setTimeout(() => {
                       setAuthToken(null);
+                      setSessionDisplayName(null);
                       setShowLogout(false);
                       setSessionSnail(null);
                       void nav("/login", { replace: true });

@@ -1,11 +1,13 @@
 import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
+import { useAuthMode } from "../auth-context";
 import { api } from "../api";
 import { Badge } from "../components/Badge";
 import { CheckAllWaitOverlay } from "../components/CheckAllWaitOverlay";
 import { SiteActiveBadge } from "../components/SiteActiveBadge";
 import { IconCheckCircle, IconRefreshCw, IconSearch } from "../components/NavIcons";
 import { TablePagination } from "../components/TablePagination";
+import { isAdminSession } from "../lib/auth-session";
 import { domainExpiryCellClass, formatListDate, sslExpiryCellClass } from "../lib/site-table-dates";
 import { labelEnvironment } from "../lib/status-labels";
 import type { SiteRow } from "../types";
@@ -13,6 +15,8 @@ import type { SiteRow } from "../types";
 const PAGE_SIZE = 10;
 
 export function SiteList() {
+  const { authRequired } = useAuthMode();
+  const canRunCheckAll = !authRequired || isAdminSession();
   const [items, setItems] = useState<SiteRow[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
@@ -139,26 +143,28 @@ export function SiteList() {
           >
             Buscar
           </button>
-          <button
-            type="button"
-            className="btn btn-check-all sites-toolbar__btn"
-            disabled={checkingAll}
-            aria-busy={checkingAll}
-            title="Ejecutar chequeo SSL, DNS y HTTP en todos los sitios"
-            onClick={() => void runCheckAll()}
-          >
-            {checkingAll ? (
-              <>
-                <span className="spinner-ring spinner-ring--sm" aria-hidden />
-                Revisando
-              </>
-            ) : (
-              <>
-                <IconRefreshCw />
-                Chequear todos
-              </>
-            )}
-          </button>
+          {canRunCheckAll ? (
+            <button
+              type="button"
+              className="btn btn-check-all sites-toolbar__btn"
+              disabled={checkingAll}
+              aria-busy={checkingAll}
+              title="Ejecutar chequeo SSL, DNS y HTTP en todos los sitios"
+              onClick={() => void runCheckAll()}
+            >
+              {checkingAll ? (
+                <>
+                  <span className="spinner-ring spinner-ring--sm" aria-hidden />
+                  Revisando
+                </>
+              ) : (
+                <>
+                  <IconRefreshCw />
+                  Chequear todos
+                </>
+              )}
+            </button>
+          ) : null}
         </div>
       </div>
       {err && <div className="card error">{err}</div>}

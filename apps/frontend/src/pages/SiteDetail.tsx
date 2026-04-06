@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
+import { useAuthMode } from "../auth-context";
 import { api } from "../api";
 import { Badge } from "../components/Badge";
 import { DocumentLinkPickerModal } from "../components/DocumentLinkPickerModal";
 import { SiteActiveBadge } from "../components/SiteActiveBadge";
 import { Spinner } from "../components/Spinner";
+import { readAuthPayload } from "../lib/auth-session";
 import { notesMatchDb } from "../lib/draft-after-save";
 import { buildOperationalReport, labelCheckStatus, labelDomainExpiryStatus, labelHttpStatus } from "../lib/status-labels";
 import type { SiteRow } from "../types";
@@ -34,6 +36,8 @@ type SiteDetail = SiteRow &
   };
 
 export function SiteDetail() {
+  const { authRequired } = useAuthMode();
+  const isAdmin = !authRequired || readAuthPayload()?.role === "admin";
   const { id } = useParams();
   const [site, setSite] = useState<SiteDetail | null>(null);
   const [history, setHistory] = useState<{ items: unknown[] } | null>(null);
@@ -256,27 +260,29 @@ export function SiteDetail() {
           <h1>{site.siteName}</h1>
           <p className="muted">{site.domain}</p>
         </div>
-        <div className="row gap">
-          <Link className="btn" to={`/sites/${id}/edit`} title="Incluye fecha de expiración del dominio si WHOIS no la trae">
-            Editar sitio
-          </Link>
-          <button
-            type="button"
-            className="btn primary"
-            disabled={checking}
-            aria-busy={checking}
-            onClick={() => void runCheck()}
-          >
-            {checking ? (
-              <>
-                <Spinner size="sm" />
-                Revisando…
-              </>
-            ) : (
-              "Ejecutar chequeo"
-            )}
-          </button>
-        </div>
+        {isAdmin ? (
+          <div className="row gap">
+            <Link className="btn" to={`/sites/${id}/edit`} title="Incluye fecha de expiración del dominio si WHOIS no la trae">
+              Editar sitio
+            </Link>
+            <button
+              type="button"
+              className="btn primary"
+              disabled={checking}
+              aria-busy={checking}
+              onClick={() => void runCheck()}
+            >
+              {checking ? (
+                <>
+                  <Spinner size="sm" />
+                  Revisando…
+                </>
+              ) : (
+                "Ejecutar chequeo"
+              )}
+            </button>
+          </div>
+        ) : null}
       </div>
 
       <div className="grid stats site-detail-stats">
@@ -313,23 +319,14 @@ export function SiteDetail() {
         )}
       </div>
 
-      <div className="card site-expiry-solution">
+      <div className={`card site-expiry-solution${isAdmin ? "" : " site-expiry-solution--viewer"}`}>
         <h2>Información</h2>
 
         <h3 className="resolution-section-title">Certificado SSL</h3>
         {sslManualMismatchLabels ? (
-          <div
-            role="status"
-            style={{
-              marginBottom: "1rem",
-              padding: "0.75rem 1rem",
-              borderRadius: 6,
-              border: "1px solid var(--warn)",
-              background: "rgba(255, 159, 10, 0.1)",
-            }}
-          >
-            <strong>La fecha que usa el sistema no coincide con el último chequeo TLS</strong>
-            <p className="muted small" style={{ margin: "0.5rem 0 0 0" }}>
+          <div className="callout callout--warn" role="status">
+            <strong className="callout__title">La fecha que usa el sistema no coincide con el último chequeo TLS</strong>
+            <p className="callout__body muted small">
               Origen: <strong>manual</strong>. El panel muestra <strong>{sslManualMismatchLabels.final}</strong> como fin de
               validez, pero el chequeo obtuvo <strong>{sslManualMismatchLabels.tls}</strong> (alineado con lo que suele ver el
               navegador). Para confiar en el certificado real, abra «Editar sitio» y elimine o corrija la fecha SSL manual, o
@@ -456,7 +453,7 @@ export function SiteDetail() {
         </div>
 
         {resolutionErr && <div className="card error" style={{ marginTop: "0.75rem" }}>{resolutionErr}</div>}
-        <div className="row gap" style={{ marginTop: "1rem", flexWrap: "wrap", alignItems: "center" }}>
+        <div className="row gap resolution-save-row" style={{ marginTop: "1rem", flexWrap: "wrap", alignItems: "center" }}>
           <button
             type="button"
             className="btn primary resolution-save-btn"
@@ -494,22 +491,26 @@ export function SiteDetail() {
             {(site.linkedDocuments ?? []).map((d) => (
               <li key={d.id} className="linked-doc-row">
                 <Link to="/library">{d.title}</Link>
-                <button
-                  type="button"
-                  className="btn small ghost"
-                  onClick={() => void removeDocumentLink(d.id)}
-                >
-                  Quitar enlace
-                </button>
+                {isAdmin ? (
+                  <button
+                    type="button"
+                    className="btn small ghost"
+                    onClick={() => void removeDocumentLink(d.id)}
+                  >
+                    Quitar enlace
+                  </button>
+                ) : null}
               </li>
             ))}
           </ul>
         )}
-        <button type="button" className="btn" onClick={() => setDocPickerOpen(true)}>
-          Enlazar documento…
-        </button>
+        {isAdmin ? (
+          <button type="button" className="btn" onClick={() => setDocPickerOpen(true)}>
+            Enlazar documento…
+          </button>
+        ) : null}
         <DocumentLinkPickerModal
-          open={docPickerOpen}
+          open={isAdmin && docPickerOpen}
           siteId={site.id}
           linkedIds={new Set((site.linkedDocuments ?? []).map((d) => d.id))}
           onClose={() => setDocPickerOpen(false)}
@@ -535,17 +536,28 @@ export function SiteDetail() {
       <div className="card">
         <div className="row-between">
           <h2>Documentación</h2>
-          <button type="button" className="btn small" onClick={() => setDocFormOpen((o) => !o)}>
-            {docFormOpen ? "Cerrar formulario" : "Añadir documento"}
-          </button>
+          {isAdmin ? (
+            <button type="button" className="btn small" onClick={() => setDocFormOpen((o) => !o)}>
+              {docFormOpen ? "Cerrar formulario" : "Añadir documento"}
+            </button>
+          ) : null}
         </div>
         <p className="muted small">
-          Puede <strong>subir archivos</strong> (PDF, Word .docx, Excel .xlsx/.xls, CSV o TXT): el sistema extrae el
-          texto y lo indexa para la{" "}
-          <Link to="/library">Biblioteca</Link>. También puede pegar datos manualmente en{" "}
-          <strong>texto para búsqueda</strong> abajo.
+          {isAdmin ? (
+            <>
+              Puede <strong>subir archivos</strong> (PDF, Word .docx, Excel .xlsx/.xls, CSV o TXT): el sistema extrae el
+              texto y lo indexa para la <Link to="/library">Biblioteca</Link>. También puede pegar datos manualmente en{" "}
+              <strong>texto para búsqueda</strong> abajo.
+            </>
+          ) : (
+            <>
+              Los administradores suben y crean documentos aquí o en la <Link to="/library">Biblioteca</Link>. Usted puede
+              ver el listado y usar la búsqueda inteligente para consultar el contenido indexado.
+            </>
+          )}
         </p>
 
+        {isAdmin ? (
         <div
           className="stack"
           style={{
@@ -637,11 +649,14 @@ export function SiteDetail() {
             </div>
           </div>
         </div>
+        ) : null}
 
+        {isAdmin ? (
         <p className="muted small" style={{ marginTop: "1rem" }}>
           O bien cree un documento solo con texto: use <strong>texto para búsqueda</strong> para pegar tablas o notas.
         </p>
-        {docFormOpen && (
+        ) : null}
+        {isAdmin && docFormOpen ? (
           <div className="form-grid" style={{ marginTop: "1rem" }}>
             {docErr && <div className="card error span-2">{docErr}</div>}
             <label>
@@ -707,7 +722,7 @@ export function SiteDetail() {
               </button>
             </div>
           </div>
-        )}
+        ) : null}
         {docs.length === 0 ? (
           <p className="muted">Sin documentos registrados.</p>
         ) : (

@@ -1,7 +1,10 @@
 import { useEffect, useState } from "react";
+import { useTheme } from "../theme-context";
 
-/** Logo opcional: `public/grupo-purdy-logo.png` */
-const BRAND_LOGO_PNG = "/grupo-purdy-logo.png";
+/** Tema oscuro: `public/grupo-purdy-logo.png` (blanco sobre oscuro; en login/sidebar se usa con mix-blend lighten). */
+const BRAND_LOGO_DARK = "/grupo-purdy-logo.png";
+/** Tema claro: `public/grupo-purdy-logo-light.png` (logo oscuro o a color sobre fondo claro; sin mix-blend). */
+const BRAND_LOGO_LIGHT = "/grupo-purdy-logo-light.png";
 
 /** Título por defecto bajo el logo. */
 const DEFAULT_APP_TITLE = "Inventario Sitios Web Purdy";
@@ -18,30 +21,36 @@ type Props = {
 };
 
 export function AppBrand({ variant = "sidebar" }: Props) {
+  const { theme } = useTheme();
   const [brandLogoSrc, setBrandLogoSrc] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
-    fetch(BRAND_LOGO_PNG)
+    const url = theme === "light" ? BRAND_LOGO_LIGHT : BRAND_LOGO_DARK;
+    fetch(url)
       .then((r) => {
-        if (!cancelled && r.ok) setBrandLogoSrc(BRAND_LOGO_PNG);
+        if (cancelled) return;
+        if (r.ok) setBrandLogoSrc(url);
+        else setBrandLogoSrc(null);
       })
-      .catch(() => {});
+      .catch(() => {
+        if (!cancelled) setBrandLogoSrc(null);
+      });
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [theme]);
+
+  const logoClass = theme === "light" && brandLogoSrc === BRAND_LOGO_LIGHT ? "brand-logo brand-logo--light" : "brand-logo";
 
   return (
     <div className={`brand${variant === "standalone" ? " brand--standalone" : ""}`}>
       <div className="brand-logo-row">
         {brandLogoSrc ? (
           <img
-            className="brand-logo"
+            className={logoClass}
             src={brandLogoSrc}
             alt="Grupo Purdy"
-            width={320}
-            height={69}
             onError={() => setBrandLogoSrc(null)}
           />
         ) : (

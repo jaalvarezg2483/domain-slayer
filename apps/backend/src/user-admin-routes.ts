@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import type { DataSource } from "typeorm";
 import type { Router, Request, Response, NextFunction } from "express";
 import { AppUserEntity } from "@domain-slayer/infrastructure";
-import { hashPassword, type AuthedRequest } from "./auth-http.js";
+import { hashPassword, resolvedDisplayName, type AuthedRequest } from "./auth-http.js";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/i;
 
@@ -23,7 +23,16 @@ export function registerUserAdminRoutes(r: Router, ds: DataSource): void {
     next();
   };
 
-  r.get("/users", gate, requireAuth, async (_req, res, next) => {
+  const requireAdmin = (req: Request, res: Response, next: NextFunction): void => {
+    const a = (req as AuthedRequest).auth;
+    if (!a || a.role !== "admin") {
+      res.status(403).json({ error: "Se requieren permisos de administrador." });
+      return;
+    }
+    next();
+  };
+
+  r.get("/users", gate, requireAuth, requireAdmin, async (_req, res, next) => {
     try {
       const repo = ds.getRepository(AppUserEntity);
       const rows = await repo.find({ order: { createdAt: "ASC" } });
@@ -31,6 +40,8 @@ export function registerUserAdminRoutes(r: Router, ds: DataSource): void {
         items: rows.map((u) => ({
           id: u.id,
           email: u.email,
+          displayName: resolvedDisplayName(u),
+          role: u.role === "viewer" ? "viewer" : "admin",
           createdAt: u.createdAt.toISOString(),
         })),
       });
@@ -39,12 +50,15 @@ export function registerUserAdminRoutes(r: Router, ds: DataSource): void {
     }
   });
 
-  r.post("/users", gate, requireAuth, async (req, res, next) => {
+  r.post("/users", gate, requireAuth, requireAdmin, async (req, res, next) => {
     try {
       const email = String(req.body?.email ?? "")
         .trim()
         .toLowerCase();
       const password = String(req.body?.password ?? "");
+      const displayNameIn = String(req.body?.displayName ?? "").trim();
+      const roleRaw = String(req.body?.role ?? "viewer").toLowerCase();
+      const role = roleRaw === "admin" ? "admin" : "viewer";
       if (!email || !EMAIL_RE.test(email)) {
         res.status(400).json({ error: "Indique un correo electrónico válido." });
         return;
@@ -53,6 +67,11 @@ export function registerUserAdminRoutes(r: Router, ds: DataSource): void {
         res.status(400).json({ error: "La contraseña debe tener al menos 8 caracteres." });
         return;
       }
+      if (!displayNameIn) {
+        res.status(400).json({ error: "Indique el nombre para mostrar (persona que verá en el menú)." });
+        return;
+      }
+      const displayName = displayNameIn;
       const repo = ds.getRepository(AppUserEntity);
       const exists = await repo.findOne({ where: { email } });
       if (exists) {
@@ -63,6 +82,8 @@ export function registerUserAdminRoutes(r: Router, ds: DataSource): void {
         id: randomUUID(),
         email,
         passwordHash: hashPassword(password),
+        displayName,
+        role,
         createdAt: new Date(),
       });
       res.status(201).json({ ok: true, email });
@@ -71,25 +92,47 @@ export function registerUserAdminRoutes(r: Router, ds: DataSource): void {
     }
   });
 
-  r.patch("/users/:id", gate, requireAuth, async (req, res, next) => {
+  r.patch("/users/:id", gate, requireAuth, requireAdmin, async (req, res, next) => {
     try {
       const id = String(req.params.id ?? "").trim();
-      const password = String(req.body?.password ?? "");
       if (!id) {
         res.status(400).json({ error: "Usuario no válido." });
         return;
       }
-      if (password.length < 8) {
+      const password = String(req.body?.password ?? "");
+      const hasPassword = password.length > 0;
+      const bodyDn = req.body?.displayName;
+      const bodyRole = req.body?.role;
+      const hasDisplayName = bodyDn !== undefined && bodyDn !== null;
+      const hasRole = bodyRole !== undefined && bodyRole !== null;
+
+      if (!hasPassword && !hasDisplayName && !hasRole) {
+        res.status(400).json({ error: "Indique nueva contraseña, nombre o rol." });
+        return;
+      }
+      if (hasPassword && password.length < 8) {
         res.status(400).json({ error: "La contraseña debe tener al menos 8 caracteres." });
         return;
       }
+
       const repo = ds.getRepository(AppUserEntity);
       const row = await repo.findOne({ where: { id } });
       if (!row) {
         res.status(404).json({ error: "Usuario no encontrado." });
         return;
       }
-      row.passwordHash = hashPassword(password);
+
+      if (hasPassword) {
+        row.passwordHash = hashPassword(password);
+      }
+      if (hasDisplayName) {
+        const dn = String(bodyDn).trim();
+        row.displayName = dn ? dn : null;
+      }
+      if (hasRole) {
+        const rr = String(bodyRole).toLowerCase();
+        row.role = rr === "admin" ? "admin" : "viewer";
+      }
       await repo.save(row);
       res.json({ ok: true });
     } catch (e) {
@@ -97,7 +140,7 @@ export function registerUserAdminRoutes(r: Router, ds: DataSource): void {
     }
   });
 
-  r.delete("/users/:id", gate, requireAuth, async (req, res, next) => {
+  r.delete("/users/:id", gate, requireAuth, requireAdmin, async (req, res, next) => {
     try {
       const id = String(req.params.id ?? "").trim();
       const auth = (req as AuthedRequest).auth;

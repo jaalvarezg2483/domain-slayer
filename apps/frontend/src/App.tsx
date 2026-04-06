@@ -1,5 +1,6 @@
 import { Routes, Route, Navigate } from "react-router-dom";
 import { Layout } from "./components/Layout";
+import { RequireAdmin } from "./components/RequireAdmin";
 import { RequireAuth } from "./components/RequireAuth";
 import { Login } from "./pages/Login";
 import { Dashboard } from "./pages/Dashboard";
@@ -30,12 +31,40 @@ export function App() {
         <Route path="assistant" element={<LibraryAssistant />} />
         <Route path="sites" element={<SiteList />} />
         <Route path="reports" element={<Reports />} />
-        <Route path="sites/new" element={<SiteForm />} />
-        <Route path="sites/:id/edit" element={<SiteForm />} />
+        <Route
+          path="sites/new"
+          element={
+            <RequireAdmin>
+              <SiteForm />
+            </RequireAdmin>
+          }
+        />
+        <Route
+          path="sites/:id/edit"
+          element={
+            <RequireAdmin>
+              <SiteForm />
+            </RequireAdmin>
+          }
+        />
         <Route path="sites/:id" element={<SiteDetail />} />
         <Route path="alerts" element={<Alerts />} />
-        <Route path="settings/monitoring" element={<MonitoringScheduleSettings />} />
-        <Route path="settings/users" element={<UsersSettings />} />
+        <Route
+          path="settings/monitoring"
+          element={
+            <RequireAdmin>
+              <MonitoringScheduleSettings />
+            </RequireAdmin>
+          }
+        />
+        <Route
+          path="settings/users"
+          element={
+            <RequireAdmin>
+              <UsersSettings />
+            </RequireAdmin>
+          }
+        />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>
     </Routes>

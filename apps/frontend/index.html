@@ -9,6 +9,16 @@
       content="DomainSlayer: inventario de sitios web, certificados SSL, dominios y alertas."
     />
     <meta name="theme-color" content="#121820" />
+    <script>
+      (function () {
+        try {
+          var t = localStorage.getItem("ds-theme");
+          document.documentElement.dataset.theme = t === "light" ? "light" : "dark";
+        } catch (e) {
+          document.documentElement.dataset.theme = "dark";
+        }
+      })();
+    </script>
 
     <!-- Vista previa al compartir enlace (WhatsApp, Teams, LinkedIn, etc.): Open Graph -->
     <meta property="og:type" content="website" />

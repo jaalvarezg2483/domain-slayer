@@ -1,9 +1,11 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
+import { useAuthMode } from "../auth-context";
 import { api, type DocumentEmbeddedMediaItem } from "../api";
 import { ConfirmModal } from "../components/ConfirmModal";
 import { DocumentTextWithEmbeddings } from "../components/DocumentTextWithEmbeddings";
 import { Spinner } from "../components/Spinner";
+import { isAdminSession } from "../lib/auth-session";
 import type { SiteRow } from "../types";
 
 type Hit = {
@@ -69,6 +71,8 @@ type LibraryDocRow = {
 };
 
 export function Library() {
+  const { authRequired } = useAuthMode();
+  const isAdmin = !authRequired || isAdminSession();
   const [sites, setSites] = useState<SiteRow[]>([]);
   const [sitesErr, setSitesErr] = useState<string | null>(null);
 
@@ -208,12 +212,20 @@ export function Library() {
   return (
     <div className="stack">
       <h1>Biblioteca y búsqueda</h1>
-      <p className="muted">
-        <strong>Primero</strong> suba el archivo. Puede dejarlo <strong>sin sitio</strong> si el Excel o PDF aplica a
-        varios sistemas (credenciales compartidas, listados, etc.). Opcionalmente vincule un sitio.{" "}
-        <strong>Después</strong> busque por palabras clave (deben aparecer <em>todas</em>).
-      </p>
+      {isAdmin ? (
+        <p className="muted">
+          <strong>Primero</strong> suba el archivo. Puede dejarlo <strong>sin sitio</strong> si el Excel o PDF aplica a
+          varios sistemas (credenciales compartidas, listados, etc.). Opcionalmente vincule un sitio.{" "}
+          <strong>Después</strong> busque por palabras clave (deben aparecer <em>todas</em>).
+        </p>
+      ) : (
+        <p className="muted">
+          Busque por palabras clave abajo y descargue los archivos que necesite. Solo los administradores pueden subir o
+          eliminar documentos.
+        </p>
+      )}
 
+      {isAdmin ? (
       <div
         className="card"
         style={{
@@ -319,6 +331,7 @@ export function Library() {
           </div>
         </div>
       </div>
+      ) : null}
 
       <div className="card">
         <div className="row-between wrap gap" style={{ marginBottom: "0.75rem" }}>
@@ -334,9 +347,14 @@ export function Library() {
           </button>
         </div>
         <p className="muted small" style={{ marginTop: 0 }}>
-          Use <strong>Descargar</strong> para guardar el archivo original en su equipo (mismo PDF, Word o Excel que subió).
-          Revise versiones y elimine los que estén desactualizados; la búsqueda y el asistente dejarán de usarlos de
-          inmediato.
+          Use <strong>Descargar</strong> para guardar el archivo original en su equipo.
+          {isAdmin ? (
+            <>
+              {" "}
+              Revise versiones y elimine los que estén desactualizados; la búsqueda y el asistente dejarán de usarlos de
+              inmediato.
+            </>
+          ) : null}
         </p>
         {libErr && <div className="card error" style={{ marginTop: "0.5rem" }}>{libErr}</div>}
         {!libLoading && libDocs.length === 0 && !libErr && (
@@ -400,14 +418,16 @@ export function Library() {
                         >
                           {downloadingId === d.id ? "…" : "Descargar"}
                         </button>
-                        <button
-                          type="button"
-                          className="btn small danger"
-                          disabled={deletingId === d.id || downloadingId === d.id}
-                          onClick={() => setDocPendingDelete(d)}
-                        >
-                          {deletingId === d.id ? "…" : "Eliminar"}
-                        </button>
+                        {isAdmin ? (
+                          <button
+                            type="button"
+                            className="btn small danger"
+                            disabled={deletingId === d.id || downloadingId === d.id}
+                            onClick={() => setDocPendingDelete(d)}
+                          >
+                            {deletingId === d.id ? "…" : "Eliminar"}
+                          </button>
+                        ) : null}
                       </div>
                     </td>
                   </tr>

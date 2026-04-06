@@ -1,7 +1,9 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { api, hasAuthToken, setAuthToken } from "../api";
+import { setSessionDisplayName } from "../lib/auth-session";
 import { AppBrand } from "../components/AppBrand";
+import { ThemeToggle } from "../components/ThemeToggle";
 
 export function Login() {
   const nav = useNavigate();
@@ -49,6 +51,7 @@ export function Login() {
       }
       if (r.token) {
         setAuthToken(r.token);
+        setSessionDisplayName(r.user?.displayName?.trim() || null);
         try {
           sessionStorage.setItem("ds_snail_welcome", "1");
         } catch {
@@ -64,6 +67,9 @@ export function Login() {
   if (checking) {
     return (
       <div className="login-standalone login-standalone--loading muted">
+        <div className="login-standalone__theme-bar">
+          <ThemeToggle />
+        </div>
         Cargando…
       </div>
     );
@@ -71,6 +77,9 @@ export function Login() {
 
   return (
     <div className="login-standalone">
+      <div className="login-standalone__theme-bar">
+        <ThemeToggle />
+      </div>
       <div className="login-standalone__inner">
         <header className="login-standalone__brand">
           <AppBrand variant="standalone" />

@@ -310,11 +310,16 @@ export const api = {
     summary: () => request<{ sites: { items: unknown[] }; alerts: { items: unknown[] } }>(`/dashboard/summary`),
   },
   users: {
-    list: () => request<{ items: { id: string; email: string; createdAt: string }[] }>(`/users`),
-    create: (body: { email: string; password: string }) =>
+    list: () =>
+      request<{
+        items: { id: string; email: string; displayName: string; role: string; createdAt: string }[];
+      }>(`/users`),
+    create: (body: { email: string; password: string; displayName?: string; role?: string }) =>
       request<{ ok: boolean; email: string }>(`/users`, { method: "POST", body: JSON.stringify(body) }),
-    updatePassword: (id: string, password: string) =>
-      request<{ ok: boolean }>(`/users/${id}`, { method: "PATCH", body: JSON.stringify({ password }) }),
+    update: (
+      id: string,
+      body: { password?: string; displayName?: string; role?: "admin" | "viewer" }
+    ) => request<{ ok: boolean }>(`/users/${id}`, { method: "PATCH", body: JSON.stringify(body) }),
     remove: (id: string) => request<void>(`/users/${id}`, { method: "DELETE" }),
   },
   libraryAssistant: {
@@ -331,10 +336,12 @@ export const api = {
   auth: {
     status: () => request<{ authRequired: boolean }>(`/auth/status`),
     login: (email: string, password: string) =>
-      request<{ token?: string; authDisabled?: boolean; message?: string; user?: { email: string } }>(
-        `/auth/login`,
-        { method: "POST", body: JSON.stringify({ email, password }) }
-      ),
+      request<{
+        token?: string;
+        authDisabled?: boolean;
+        message?: string;
+        user?: { email: string; displayName?: string; role?: string };
+      }>(`/auth/login`, { method: "POST", body: JSON.stringify({ email, password }) }),
   },
 };
 

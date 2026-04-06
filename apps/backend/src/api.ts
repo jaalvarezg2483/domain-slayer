@@ -6,7 +6,7 @@ import { AppError, NotFoundError, ValidationError } from "@domain-slayer/shared"
 import type { ServiceBroker } from "moleculer";
 import { Errors } from "moleculer";
 import { Router, type Request, type Response, type NextFunction } from "express";
-import { authMiddleware, registerAuthRoutes } from "./auth-http.js";
+import { authMiddleware, registerAuthRoutes, type AuthedRequest } from "./auth-http.js";
 import multer from "multer";
 import { extractSearchableText } from "./extract-document-text.js";
 import { buildLocalSearchSummary } from "./library-local-intel.js";
@@ -73,6 +73,24 @@ function buildContentDispositionAttachment(fileName: string): string {
   const ascii = /^[\x20-\x7E]+$/.test(base) ? base : "document";
   const escaped = ascii.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
   return `attachment; filename="${escaped}"; filename*=UTF-8''${encodeURIComponent(base)}`;
+}
+
+/** Mutaciones reservadas a administradores cuando JWT está activo. */
+function requireAdminApi(req: Request, res: Response, next: NextFunction): void {
+  if (!process.env.JWT_SECRET?.trim()) {
+    next();
+    return;
+  }
+  const a = (req as AuthedRequest).auth;
+  if (!a) {
+    res.status(401).json({ error: "Se requiere autenticación" });
+    return;
+  }
+  if (a.role !== "admin") {
+    res.status(403).json({ error: "Se requieren permisos de administrador." });
+    return;
+  }
+  next();
 }
 
 const ALLOWED_DOC_TYPES = new Set([
@@ -174,7 +192,7 @@ export function createApiRouter(broker: ServiceBroker, options?: ApiRouterOption
     }
   });
 
-  r.post("/sites", async (req, res, next) => {
+  r.post("/sites", requireAdminApi, async (req, res, next) => {
     try {
       const out = await broker.call("inventory.sites.create", { payload: req.body });
       res.status(201).json(out);
@@ -183,7 +201,7 @@ export function createApiRouter(broker: ServiceBroker, options?: ApiRouterOption
     }
   });
 
-  r.patch("/sites/:id", async (req, res, next) => {
+  r.patch("/sites/:id", requireAdminApi, async (req, res, next) => {
     try {
       const out = await broker.call("inventory.sites.update", { id: req.params.id, payload: req.body });
       res.json(withSiteResolutionNotes(out as Record<string, unknown>));
@@ -192,7 +210,7 @@ export function createApiRouter(broker: ServiceBroker, options?: ApiRouterOption
     }
   });
 
-  r.post("/sites/:siteId/document-links", async (req, res, next) => {
+  r.post("/sites/:siteId/document-links", requireAdminApi, async (req, res, next) => {
     try {
       const documentId = String((req.body as { documentId?: unknown })?.documentId ?? "").trim();
       if (!documentId) {
@@ -209,7 +227,7 @@ export function createApiRouter(broker: ServiceBroker, options?: ApiRouterOption
     }
   });
 
-  r.delete("/sites/:siteId/document-links/:documentId", async (req, res, next) => {
+  r.delete("/sites/:siteId/document-links/:documentId", requireAdminApi, async (req, res, next) => {
     try {
       await broker.call("inventory.sites.documentLinks.remove", {
         siteId: req.params.siteId,
@@ -221,7 +239,7 @@ export function createApiRouter(broker: ServiceBroker, options?: ApiRouterOption
     }
   });
 
-  r.delete("/sites/:id", async (req, res, next) => {
+  r.delete("/sites/:id", requireAdminApi, async (req, res, next) => {
     try {
       await broker.call("inventory.sites.delete", { id: req.params.id });
       res.status(204).end();
@@ -241,6 +259,7 @@ export function createApiRouter(broker: ServiceBroker, options?: ApiRouterOption
 
   r.post(
     "/documents/upload",
+    requireAdminApi,
     upload.single("file") as any,
     async (req: Request, res: Response, next: NextFunction) => {
       const file = (
@@ -446,7 +465,7 @@ export function createApiRouter(broker: ServiceBroker, options?: ApiRouterOption
     }
   });
 
-  r.post("/documents", async (req, res, next) => {
+  r.post("/documents", requireAdminApi, async (req, res, next) => {
     try {
       const out = await broker.call("documents.docs.create", { payload: req.body });
       res.status(201).json(out);
@@ -455,7 +474,7 @@ export function createApiRouter(broker: ServiceBroker, options?: ApiRouterOption
     }
   });
 
-  r.patch("/documents/:id", async (req, res, next) => {
+  r.patch("/documents/:id", requireAdminApi, async (req, res, next) => {
     try {
       const out = await broker.call("documents.docs.update", { id: req.params.id, payload: req.body });
       res.json(out);
@@ -546,7 +565,7 @@ export function createApiRouter(broker: ServiceBroker, options?: ApiRouterOption
     }
   });
 
-  r.delete("/documents/:id", async (req, res, next) => {
+  r.delete("/documents/:id", requireAdminApi, async (req, res, next) => {
     try {
       const doc = (await broker.call("documents.docs.get", { id: req.params.id })) as {
         filePath?: string | null;
@@ -589,7 +608,7 @@ export function createApiRouter(broker: ServiceBroker, options?: ApiRouterOption
     }
   });
 
-  r.post("/alerts/resolve-all", async (_req, res, next) => {
+  r.post("/alerts/resolve-all", requireAdminApi, async (_req, res, next) => {
     try {
       const out = await broker.call("alerting.alerts.resolveAllOpen");
       res.json(out);
@@ -598,7 +617,7 @@ export function createApiRouter(broker: ServiceBroker, options?: ApiRouterOption
     }
   });
 
-  r.post("/alerts/:id/read", async (req, res, next) => {
+  r.post("/alerts/:id/read", requireAdminApi, async (req, res, next) => {
     try {
       await broker.call("alerting.alerts.read", { id: req.params.id });
       res.json({ ok: true });
@@ -607,7 +626,7 @@ export function createApiRouter(broker: ServiceBroker, options?: ApiRouterOption
     }
   });
 
-  r.post("/alerts/:id/resolve", async (req, res, next) => {
+  r.post("/alerts/:id/resolve", requireAdminApi, async (req, res, next) => {
     try {
       await broker.call("alerting.alerts.resolve", { id: req.params.id });
       res.json({ ok: true });
@@ -631,7 +650,7 @@ export function createApiRouter(broker: ServiceBroker, options?: ApiRouterOption
     }
   });
 
-  r.post("/monitoring/check/:siteId", async (req, res, next) => {
+  r.post("/monitoring/check/:siteId", requireAdminApi, async (req, res, next) => {
     try {
       const out = await broker.call("monitoring.check.runOne", { siteId: req.params.siteId });
       res.json(out);
@@ -640,7 +659,7 @@ export function createApiRouter(broker: ServiceBroker, options?: ApiRouterOption
     }
   });
 
-  r.post("/monitoring/check-all", async (_req, res, next) => {
+  r.post("/monitoring/check-all", requireAdminApi, async (_req, res, next) => {
     try {
       const out = await broker.call("monitoring.check.runAll");
       res.json(out);

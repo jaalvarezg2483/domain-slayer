@@ -1,22 +1,13 @@
 import { useCallback, useEffect, useState } from "react";
-import { api, AUTH_STORAGE_KEY } from "../api";
+import { api } from "../api";
 import { ConfirmModal } from "../components/ConfirmModal";
 import { Spinner } from "../components/Spinner";
+import { readAuthPayload, setSessionDisplayName } from "../lib/auth-session";
 
-type Row = { id: string; email: string; createdAt: string };
+type Row = { id: string; email: string; displayName: string; role: string; createdAt: string };
 
-function jwtSub(): string | null {
-  if (typeof sessionStorage === "undefined") return null;
-  const t = sessionStorage.getItem(AUTH_STORAGE_KEY);
-  if (!t) return null;
-  try {
-    const p = t.split(".")[1];
-    if (!p) return null;
-    const json = JSON.parse(atob(p.replace(/-/g, "+").replace(/_/g, "/"))) as { sub?: string };
-    return json.sub ?? null;
-  } catch {
-    return null;
-  }
+function roleLabel(r: string): string {
+  return r === "viewer" ? "Visor" : "Administrador";
 }
 
 export function UsersSettings() {
@@ -25,18 +16,25 @@ export function UsersSettings() {
   const [err, setErr] = useState<string | null>(null);
   const [ok, setOk] = useState<string | null>(null);
 
+  const [newDisplayName, setNewDisplayName] = useState("");
   const [newEmail, setNewEmail] = useState("");
   const [newPass, setNewPass] = useState("");
+  const [newRole, setNewRole] = useState<"admin" | "viewer">("viewer");
   const [creating, setCreating] = useState(false);
 
   const [pwdUserId, setPwdUserId] = useState<string | null>(null);
   const [pwdValue, setPwdValue] = useState("");
   const [pwdBusy, setPwdBusy] = useState(false);
 
+  const [editUser, setEditUser] = useState<Row | null>(null);
+  const [editDisplayName, setEditDisplayName] = useState("");
+  const [editRole, setEditRole] = useState<"admin" | "viewer">("viewer");
+  const [editBusy, setEditBusy] = useState(false);
+
   const [userPendingDelete, setUserPendingDelete] = useState<{ id: string; email: string } | null>(null);
   const [userDeleteBusy, setUserDeleteBusy] = useState(false);
 
-  const selfId = jwtSub();
+  const selfId = readAuthPayload()?.sub ?? null;
 
   const load = useCallback(() => {
     setErr(null);
@@ -60,10 +58,17 @@ export function UsersSettings() {
     setOk(null);
     setCreating(true);
     try {
-      await api.users.create({ email: newEmail.trim(), password: newPass });
+      await api.users.create({
+        email: newEmail.trim(),
+        password: newPass,
+        displayName: newDisplayName.trim() || undefined,
+        role: newRole,
+      });
       setOk(`Usuario ${newEmail.trim()} creado.`);
       setNewEmail("");
       setNewPass("");
+      setNewDisplayName("");
+      setNewRole("viewer");
       void load();
     } catch (e) {
       setErr((e as Error).message);
@@ -96,7 +101,7 @@ export function UsersSettings() {
     setErr(null);
     setOk(null);
     try {
-      await api.users.updatePassword(pwdUserId, pwdValue);
+      await api.users.update(pwdUserId, { password: pwdValue });
       setOk("Contraseña actualizada.");
       setPwdUserId(null);
       setPwdValue("");
@@ -105,6 +110,35 @@ export function UsersSettings() {
       setErr((e as Error).message);
     } finally {
       setPwdBusy(false);
+    }
+  };
+
+  const openEdit = (u: Row) => {
+    setEditUser(u);
+    setEditDisplayName(u.displayName?.trim() || u.email.split("@")[0] || "");
+    setEditRole(u.role === "viewer" ? "viewer" : "admin");
+  };
+
+  const saveEdit = async () => {
+    if (!editUser) return;
+    setEditBusy(true);
+    setErr(null);
+    setOk(null);
+    try {
+      await api.users.update(editUser.id, {
+        displayName: editDisplayName.trim(),
+        role: editRole,
+      });
+      if (editUser.id === selfId) {
+        setSessionDisplayName(editDisplayName.trim() || null);
+      }
+      setOk("Usuario actualizado.");
+      setEditUser(null);
+      void load();
+    } catch (e) {
+      setErr((e as Error).message);
+    } finally {
+      setEditBusy(false);
     }
   };
 
@@ -133,6 +167,25 @@ export function UsersSettings() {
           Añadir usuario
         </h2>
         <label>
+          Nombre (pantalla) — obligatorio; es lo que verá en el menú
+          <input
+            className="input"
+            type="text"
+            autoComplete="name"
+            required
+            placeholder="Ej. María García"
+            value={newDisplayName}
+            onChange={(e) => setNewDisplayName(e.target.value)}
+          />
+        </label>
+        <label>
+          Rol
+          <select className="input" value={newRole} onChange={(e) => setNewRole(e.target.value as "admin" | "viewer")}>
+            <option value="viewer">Visor (solo lectura en sitios, documentos y alertas)</option>
+            <option value="admin">Administrador</option>
+          </select>
+        </label>
+        <label>
           Correo
           <input className="input" type="email" autoComplete="off" value={newEmail} onChange={(e) => setNewEmail(e.target.value)} />
         </label>
@@ -150,7 +203,9 @@ export function UsersSettings() {
           <button
             type="button"
             className="btn schedule-save-btn"
-            disabled={creating || newEmail.trim().length < 3 || newPass.length < 8}
+            disabled={
+              creating || newEmail.trim().length < 3 || newPass.length < 8 || !newDisplayName.trim()
+            }
             onClick={() => void createUser()}
           >
             {creating ? (
@@ -174,12 +229,18 @@ export function UsersSettings() {
             {items.map((u) => (
               <li key={u.id} className="users-list__row">
                 <div>
-                  <strong>{u.email}</strong>
+                  <strong>{u.displayName?.trim() || u.email}</strong>
+                  <span className="muted small" style={{ display: "block" }}>
+                    {u.email} · {roleLabel(u.role)}
+                  </span>
                   <span className="muted small" style={{ display: "block" }}>
                     Alta: {new Date(u.createdAt).toLocaleString()}
                   </span>
                 </div>
                 <div className="users-list__actions">
+                  <button type="button" className="btn small schedule-test-btn" onClick={() => openEdit(u)}>
+                    Nombre y rol
+                  </button>
                   <button type="button" className="btn small schedule-test-btn" onClick={() => setPwdUserId(u.id)}>
                     Cambiar contraseña
                   </button>
@@ -198,6 +259,44 @@ export function UsersSettings() {
           </ul>
         )}
       </div>
+
+      {editUser ? (
+        <div className="card form-grid">
+          <h3 className="span-2" style={{ fontSize: "1rem", margin: 0 }}>
+            Editar {editUser.email}
+          </h3>
+          <label>
+            Nombre (pantalla)
+            <input
+              className="input"
+              type="text"
+              value={editDisplayName}
+              onChange={(e) => setEditDisplayName(e.target.value)}
+            />
+          </label>
+          <label>
+            Rol
+            <select className="input" value={editRole} onChange={(e) => setEditRole(e.target.value as "admin" | "viewer")}>
+              <option value="viewer">Visor</option>
+              <option value="admin">Administrador</option>
+            </select>
+          </label>
+          <div className="span-2 row gap">
+            <button
+              type="button"
+              className="btn schedule-save-btn"
+              disabled={editBusy}
+              onClick={() => void saveEdit()}
+            >
+              {editBusy ? <Spinner size="sm" /> : null}
+              Guardar cambios
+            </button>
+            <button type="button" className="btn schedule-test-btn" onClick={() => setEditUser(null)}>
+              Cancelar
+            </button>
+          </div>
+        </div>
+      ) : null}
 
       {pwdUserId ? (
         <div className="card form-grid">
@@ -225,7 +324,14 @@ export function UsersSettings() {
               {pwdBusy ? <Spinner size="sm" /> : null}
               Guardar
             </button>
-            <button type="button" className="btn schedule-test-btn" onClick={() => { setPwdUserId(null); setPwdValue(""); }}>
+            <button
+              type="button"
+              className="btn schedule-test-btn"
+              onClick={() => {
+                setPwdUserId(null);
+                setPwdValue("");
+              }}
+            >
               Cancelar
             </button>
           </div>

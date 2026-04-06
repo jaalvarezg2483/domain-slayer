@@ -4,6 +4,7 @@ import type { DataSource } from "typeorm";
 import type { ServiceBroker } from "moleculer";
 import { SqlMonitoringScheduleRepository, type MonitoringScheduleEntity } from "@domain-slayer/infrastructure";
 import { sendTestNotifications } from "./schedule-notify.js";
+import { monitoringScheduleAuthChain } from "./auth-http.js";
 
 const SCHED_PATHS: string[] = ["/api/settings/monitoring-schedule", "/api/settings/monitoring-schedule/"];
 
@@ -56,8 +57,9 @@ export function registerMonitoringScheduleHttp(
   broker?: ServiceBroker
 ): void {
   const schedRepo = new SqlMonitoringScheduleRepository(ds.manager);
+  const schedAdmin = monitoringScheduleAuthChain();
 
-  app.get(SCHED_PATHS, async (_req, res, next) => {
+  app.get(SCHED_PATHS, ...schedAdmin, async (_req, res, next) => {
     try {
       const row = await schedRepo.getOrCreate();
       res.json(scheduleToDto(row));
@@ -66,7 +68,7 @@ export function registerMonitoringScheduleHttp(
     }
   });
 
-  app.put(SCHED_PATHS, async (req, res, next) => {
+  app.put(SCHED_PATHS, ...schedAdmin, async (req, res, next) => {
     try {
       const b = req.body as Record<string, unknown>;
       const row = await schedRepo.getOrCreate();
@@ -127,7 +129,7 @@ export function registerMonitoringScheduleHttp(
     "/api/settings/monitoring-schedule/test-notify/",
   ];
 
-  app.post(testPaths, async (req, res, next) => {
+  app.post(testPaths, ...schedAdmin, async (req, res, next) => {
     try {
       const b = req.body as {
         notifyEmails?: string;
