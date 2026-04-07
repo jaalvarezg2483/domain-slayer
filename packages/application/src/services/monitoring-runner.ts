@@ -181,9 +181,9 @@ function tlsHostnameAfterRedirect(siteDomain: string, urlHostname: string, https
 }
 
 /**
- * Muchos sitios sirven el apex y `www` con distinto certificado (distinto `notAfter`). Si el chequeo va al raíz y
- * `https://www.dominio` tiene un certificado TLS válido con fecha de fin **posterior**, usamos ese para alinear con
- * lo que suele mostrar el navegador al entrar por `www`.
+ * Muchos sitios sirven el apex y `www` con distinto certificado (distinto `notAfter`). Tras inspeccionar el apex,
+ * si `www` tiene cert válido y vence **antes**, usamos ese (quien entra por www suele verlo; antes solo preferíamos
+ * www cuando vencía después). Si el primario no es válido y www vence después, seguimos prefiriendo www.
  */
 async function maybePreferWwwSslCert(
   ssl: SslInspector,
@@ -206,7 +206,13 @@ async function maybePreferWwwSslCert(
   }
   const pEnd =
     primary.status === "valid" && primary.validTo ? primary.validTo.getTime() : 0;
-  if (wwwSsl.validTo.getTime() > pEnd) {
+  const wEnd = wwwSsl.validTo.getTime();
+  /* Apex y www suelen tener cert distintos. Si ambos son válidos, usamos el que vence antes: quien entra
+   * por www ve a menudo ese, y las alertas quedan alineadas con el caso más restrictivo. */
+  if (primary.status === "valid" && primary.validTo) {
+    return wEnd < pEnd ? wwwSsl : primary;
+  }
+  if (wEnd > pEnd) {
     return wwwSsl;
   }
   return primary;

@@ -1116,6 +1116,90 @@ body {
   cursor: not-allowed;
 }
 
+/* Modo claro: mismos botones que en oscuro usaban texto celeste sobre fondo claro (ilegible). */
+[data-theme="light"] .btn.schedule-save-btn,
+[data-theme="light"] .monitoring-schedule-actions .schedule-save-btn {
+  background: var(--accent);
+  color: #fff;
+  border-color: #1d4ed8;
+}
+
+[data-theme="light"] .btn.schedule-save-btn:hover:not(:disabled),
+[data-theme="light"] .monitoring-schedule-actions .schedule-save-btn:hover:not(:disabled) {
+  background: #1d4ed8;
+  border-color: #1d4ed8;
+  color: #fff;
+  filter: none;
+}
+
+[data-theme="light"] .btn.schedule-save-btn:focus-visible,
+[data-theme="light"] .monitoring-schedule-actions .schedule-save-btn:focus-visible {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.35);
+}
+
+[data-theme="light"] .monitoring-schedule-actions .schedule-test-btn,
+[data-theme="light"] .btn.schedule-test-btn {
+  background: var(--surface);
+  color: var(--text);
+  border-color: var(--border);
+}
+
+[data-theme="light"] .monitoring-schedule-actions .schedule-test-btn:hover:not(:disabled),
+[data-theme="light"] .btn.schedule-test-btn:hover:not(:disabled) {
+  background: rgba(15, 23, 42, 0.06);
+  color: var(--text);
+  border-color: var(--border);
+}
+
+[data-theme="light"] .schedule-assistant__summary {
+  background: rgba(37, 99, 235, 0.07);
+  border-color: rgba(37, 99, 235, 0.22);
+  color: var(--text);
+}
+
+[data-theme="light"] .schedule-weekday-btn {
+  background: var(--surface);
+}
+
+[data-theme="light"] .schedule-weekday-btn--on {
+  border-color: rgba(37, 99, 235, 0.42);
+  background: rgba(37, 99, 235, 0.12);
+  color: #0f172a;
+}
+
+[data-theme="light"] .schedule-time-picker__trigger {
+  border-color: rgba(37, 99, 235, 0.35);
+  background: var(--input-bg);
+  color: var(--text);
+}
+
+[data-theme="light"] .schedule-time-picker__trigger:hover:not(:disabled) {
+  border-color: rgba(37, 99, 235, 0.5);
+  background: #eef2f7;
+  color: var(--text);
+}
+
+[data-theme="light"] .schedule-time-picker__popover {
+  border-color: var(--border);
+  background: var(--surface);
+  box-shadow: var(--modal-shadow);
+}
+
+[data-theme="light"] .schedule-time-picker__tabs button.is-active {
+  color: #0f172a;
+}
+
+[data-theme="light"] .schedule-time-picker__node {
+  fill: rgba(15, 23, 42, 0.05);
+  stroke: rgba(15, 23, 42, 0.18);
+}
+
+[data-theme="light"] .schedule-time-picker__num--on {
+  fill: var(--accent);
+}
+
 .schedule-assistant {
   padding: 0.15rem 0 0.35rem;
 }

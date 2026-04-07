@@ -29,14 +29,72 @@ function smtpTransport() {
   const requireTls =
     process.env.SMTP_REQUIRE_TLS === "true" ||
     (process.env.SMTP_REQUIRE_TLS !== "false" && isGmail && port === 587);
+  const connMs = Number(process.env.SMTP_CONNECTION_TIMEOUT_MS ?? 20_000);
+  const socketMs = Number(process.env.SMTP_SOCKET_TIMEOUT_MS ?? connMs);
   return nodemailer.createTransport({
     host,
     port,
     secure: process.env.SMTP_SECURE === "true" || port === 465,
     requireTLS: requireTls,
     auth: user ? { user, pass } : undefined,
-    connectionTimeout: Number(process.env.SMTP_CONNECTION_TIMEOUT_MS ?? 20_000),
+    connectionTimeout: connMs,
+    greetingTimeout: connMs,
+    socketTimeout: Number.isFinite(socketMs) && socketMs > 0 ? socketMs : connMs,
+    ...(process.env.SMTP_FORCE_IPV4 === "true" ? { family: 4 as const } : {}),
+    tls: {
+      rejectUnauthorized: process.env.SMTP_TLS_REJECT_UNAUTHORIZED !== "false",
+    },
   });
+}
+
+/** Mensaje de error más accionable en el panel (prueba de notificación). */
+function formatSmtpOrNetworkError(channel: string, e: unknown): string {
+  const raw = e instanceof Error ? e.message : String(e);
+  const lower = raw.toLowerCase();
+  let hint = "";
+  if (lower.includes("timeout") || lower.includes("timed out") || raw.includes("ETIMEDOUT")) {
+    hint =
+      " Compruebe salida TCP al puerto SMTP (587 o 465), variables SMTP_* en el hosting y que el proveedor no bloquee SMTP; si el DNS devuelve IPv6 inaccesible, pruebe SMTP_FORCE_IPV4=true.";
+  } else if (lower.includes("econnrefused") || lower.includes("enotfound") || lower.includes("getaddrinfo")) {
+    hint = " Compruebe SMTP_HOST, DNS y que el firewall permita la conexión saliente.";
+  }
+  return `${channel}: ${raw}.${hint}`;
+}
+
+function teamsWebhookTimeoutMs(): number {
+  const n = Number(process.env.TEAMS_WEBHOOK_TIMEOUT_MS ?? 30_000);
+  if (!Number.isFinite(n) || n <= 0) return 30_000;
+  return Math.min(n, 120_000);
+}
+
+async function fetchTeamsWebhook(webhookUrl: string, body: unknown): Promise<Response> {
+  const ms = teamsWebhookTimeoutMs();
+  const ac = new AbortController();
+  const t = setTimeout(() => ac.abort(), ms);
+  try {
+    return await fetch(webhookUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+      signal: ac.signal,
+    });
+  } catch (e) {
+    const err = e instanceof Error ? e : null;
+    const cause = err && "cause" in err && err.cause instanceof Error ? err.cause : null;
+    const aborted =
+      err?.name === "AbortError" ||
+      cause?.name === "AbortError" ||
+      /aborted|abort/i.test(err?.message ?? "");
+    const msg = err?.message ?? String(e);
+    if (aborted) {
+      throw new Error(
+        `tiempo de espera (${ms}ms) al llamar al webhook. Compruebe salida HTTPS desde el servidor hacia Microsoft y que la URL del conector sea la actual.`,
+      );
+    }
+    throw new Error(`red: ${msg}`);
+  } finally {
+    clearTimeout(t);
+  }
 }
 
 function parseEmails(raw: string): string[] {
@@ -306,11 +364,7 @@ async function postTeamsMessageCard(
     text,
     sections: [{ facts }],
   };
-  const res = await fetch(webhookUrl, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-  });
+  const res = await fetchTeamsWebhook(webhookUrl, body);
   if (!res.ok) {
     const t = await res.text().catch(() => "");
     throw new Error(`Teams webhook ${res.status}: ${t.slice(0, 200)}`);
@@ -343,11 +397,7 @@ async function postTeams(
       },
     ],
   };
-  const res = await fetch(webhookUrl, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(adaptivePayload),
-  });
+  const res = await fetchTeamsWebhook(webhookUrl, adaptivePayload);
   if (res.ok) return;
 
   const t = await res.text().catch(() => "");
@@ -524,26 +574,30 @@ export async function sendTestNotifications(
   let testOpen = 0;
   let testBuckets = { lessThan5Days: 0, fiveTo10Days: 0 };
   if (broker && (settings.testEmail || settings.testTeams)) {
-    const list = (await broker.call("alerting.alerts.list", {
-      isResolved: false,
-      limit: 100,
-      offset: 0,
-    })) as { items: Alert[] };
-    const items = list.items ?? [];
-    testOpen = items.length;
-    testCritical = items.filter((a) => a.severity === "critical").length;
-    testWarning = items.filter((a) => a.severity === "warning").length;
-    const siteList = (await broker.call("inventory.sites.list", {
-      isActive: true,
-      limit: 500,
-      offset: 0,
-    })) as { items: Site[] };
-    const sites = siteList.items ?? [];
-    testSitesChecked = sites.length;
-    testActiveSitesCount = sites.filter((s) => s.isActive !== false).length;
-    const built = buildExpiryEmailRowsFromSites(sites, items);
-    testExpiryRows = built.expiryRows;
-    testBuckets = countExpiryPanelBuckets(testExpiryRows);
+    try {
+      const list = (await broker.call("alerting.alerts.list", {
+        isResolved: false,
+        limit: 100,
+        offset: 0,
+      })) as { items: Alert[] };
+      const items = list.items ?? [];
+      testOpen = items.length;
+      testCritical = items.filter((a) => a.severity === "critical").length;
+      testWarning = items.filter((a) => a.severity === "warning").length;
+      const siteList = (await broker.call("inventory.sites.list", {
+        isActive: true,
+        limit: 500,
+        offset: 0,
+      })) as { items: Site[] };
+      const sites = siteList.items ?? [];
+      testSitesChecked = sites.length;
+      testActiveSitesCount = sites.filter((s) => s.isActive !== false).length;
+      const built = buildExpiryEmailRowsFromSites(sites, items);
+      testExpiryRows = built.expiryRows;
+      testBuckets = countExpiryPanelBuckets(testExpiryRows);
+    } catch (e) {
+      console.warn("[schedule-notify] Prueba: no se pudieron cargar alertas/sitios; se envía ejemplo con contadores en 0.", e);
+    }
   }
 
   const logoPath = resolvePurdyLogoPath();
@@ -584,7 +638,7 @@ export async function sendTestNotifications(
         });
         emailSent = true;
       } catch (e) {
-        errors.push(e instanceof Error ? e.message : "Error SMTP");
+        errors.push(formatSmtpOrNetworkError("Correo (SMTP)", e));
       }
     }
   }

@@ -30,9 +30,17 @@ export function SiteList() {
 
   const load = (p: number, q: string) => {
     setErr(null);
+    const parts = q
+      .trim()
+      .split(/[\s,;]+/u)
+      .map((s) => s.trim())
+      .filter((s) => s.length >= 2);
+    /* Dos o más términos: exigir que todos aparezcan en el mismo sitio (evita «grupo purdy» = todo lo que tenga «purdy»). */
+    const searchMatch = parts.length >= 2 ? "all" : "any";
     return api.sites
       .list({
         search: q,
+        searchMatch,
         limit: PAGE_SIZE,
         offset: (p - 1) * PAGE_SIZE,
         sortBy: "proximity",
@@ -112,13 +120,13 @@ export function SiteList() {
       >
         <div className="sites-toolbar__search">
           <label className="sites-toolbar__input-wrap">
-            <span className="sr-only">Buscar por nombre o dominio</span>
+            <span className="sr-only">Buscar por nombre, dominio o URL del sitio</span>
             <span className="sites-toolbar__input-icon" aria-hidden>
               <IconSearch />
             </span>
             <input
               className="input sites-toolbar__input"
-              placeholder="Buscar por nombre o dominio…"
+              placeholder="Nombre, dominio o URL (no notas ni correo)…"
               value={search}
               disabled={checkingAll}
               onChange={(e) => setSearch(e.target.value)}

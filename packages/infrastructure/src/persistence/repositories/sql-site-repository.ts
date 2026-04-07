@@ -9,26 +9,13 @@ import { SiteEntity } from "../entities/site.entity.js";
 import { mapSiteEntityToDomain } from "../mappers/site.mapper.js";
 import { spanishAccentFoldExpr } from "../sql-accent-fold.js";
 
-/** Propiedades de SiteEntity donde aplica búsqueda por texto (acentos colapsados en SQL). */
-const SITE_SEARCH_FIELDS = [
-  "siteName",
-  "domain",
-  "url",
-  "notes",
-  "sslResolutionNotes",
-  "domainResolutionNotes",
-  "businessUnit",
-  "owner",
-  "technicalOwner",
-  "contactEmail",
-  "provider",
-  "hostingProvider",
-  "dnsProvider",
-  "sslProvider",
-  "registrarProvider",
-] as const;
+/**
+ * Búsqueda del listado: solo identidad del sitio. Si se incluyen notas, propietario, proveedores, etc.,
+ * términos como «grupo» o «grupopurdy» coinciden con texto corporativo repetido en casi todas las filas.
+ */
+const SITE_LIST_SEARCH_FIELDS = ["siteName", "domain", "url"] as const;
 
-function foldSiteCol(prop: (typeof SITE_SEARCH_FIELDS)[number]): string {
+function foldListSearchCol(prop: (typeof SITE_LIST_SEARCH_FIELDS)[number]): string {
   return spanishAccentFoldExpr(`COALESCE(s.${prop},'')`);
 }
 
@@ -168,9 +155,9 @@ export class SqlSiteRepository implements SiteRepository {
           const like = `%${escapeSqlLikePattern(trimmed)}%`;
           const p = `st${pidx++}`;
           return new Brackets((q) => {
-            q.where(`${foldSiteCol("siteName")} LIKE :${p} ESCAPE '\\'`, { [p]: like });
-            for (const col of SITE_SEARCH_FIELDS.slice(1)) {
-              q.orWhere(`${foldSiteCol(col)} LIKE :${p} ESCAPE '\\'`, { [p]: like });
+            q.where(`${foldListSearchCol("siteName")} LIKE :${p} ESCAPE '\\'`, { [p]: like });
+            for (const col of SITE_LIST_SEARCH_FIELDS.slice(1)) {
+              q.orWhere(`${foldListSearchCol(col)} LIKE :${p} ESCAPE '\\'`, { [p]: like });
             }
           });
         };
