@@ -5,10 +5,16 @@ const STORAGE_KEY = "ds-theme";
 export type AppTheme = "dark" | "light";
 
 function readInitialTheme(): AppTheme {
-  if (typeof document === "undefined") return "dark";
+  if (typeof window === "undefined") return "light";
+  try {
+    const stored = localStorage.getItem(STORAGE_KEY);
+    if (stored === "light" || stored === "dark") return stored;
+  } catch {
+    /* private mode */
+  }
   const fromDom = document.documentElement.dataset.theme;
   if (fromDom === "light" || fromDom === "dark") return fromDom;
-  return "dark";
+  return "light";
 }
 
 type ThemeContextValue = {

@@ -18,6 +18,29 @@ async function headOrGet(url: string, timeoutMs: number): Promise<boolean> {
   }
 }
 
+/** HEAD luego GET; devuelve URL final (p. ej. tras 301 apex → www) aunque la comprobación «ok» falle. */
+async function httpsFollow(httpsUrl: string, timeoutMs: number): Promise<{ ok: boolean; finalUrl: string }> {
+  const tryOnce = async (method: "HEAD" | "GET") => {
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), timeoutMs);
+    try {
+      const res = await fetch(httpsUrl, { method, signal: ctrl.signal, redirect: "follow" });
+      return { ok: res.ok || (res.status >= 200 && res.status < 400), finalUrl: res.url };
+    } finally {
+      clearTimeout(timer);
+    }
+  };
+  try {
+    return await tryOnce("HEAD");
+  } catch {
+    try {
+      return await tryOnce("GET");
+    } catch {
+      return { ok: false, finalUrl: httpsUrl };
+    }
+  }
+}
+
 export class HttpConnectivityNode implements HttpConnectivityProbe {
   constructor(private readonly defaultTimeout: number) {}
 
@@ -32,19 +55,27 @@ export class HttpConnectivityNode implements HttpConnectivityProbe {
       httpUrl = `http://${host}${path}`;
       httpsUrl = url.startsWith("https:") ? url : `https://${host}${path}`;
     } catch {
+      let fallbackHttps = "https://invalid.invalid/";
+      try {
+        fallbackHttps = new URL(url).href;
+      } catch {
+        /* url ilegible */
+      }
       return {
         httpOk: false,
         httpsOk: false,
         httpStatus: "error",
         httpsStatus: "error",
+        httpsEffectiveUrl: fallbackHttps,
       };
     }
-    const [httpOk, httpsOk] = await Promise.all([headOrGet(httpUrl, ms), headOrGet(httpsUrl, ms)]);
+    const [httpOk, httpsProbe] = await Promise.all([headOrGet(httpUrl, ms), httpsFollow(httpsUrl, ms)]);
     return {
       httpOk,
-      httpsOk,
+      httpsOk: httpsProbe.ok,
       httpStatus: httpOk ? "ok" : "error",
-      httpsStatus: httpsOk ? "ok" : "error",
+      httpsStatus: httpsProbe.ok ? "ok" : "error",
+      httpsEffectiveUrl: httpsProbe.finalUrl,
     };
   }
 }

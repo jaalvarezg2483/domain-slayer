@@ -47,6 +47,8 @@ export interface HttpProbeResult {
   httpsOk: boolean;
   httpStatus: HttpCheckStatus;
   httpsStatus: HttpCheckStatus;
+  /** URL HTTPS tras seguir redirecciones (misma que la pedida si no hay 30x). Sirve para alinear TLS con el host real. */
+  httpsEffectiveUrl: string;
 }
 
 export interface HttpConnectivityProbe {

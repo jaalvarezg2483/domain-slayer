@@ -8,14 +8,29 @@
       name="description"
       content="DomainSlayer: inventario de sitios web, certificados SSL, dominios y alertas."
     />
-    <meta name="theme-color" content="#121820" />
+    <meta name="theme-color" content="#e8edf3" />
     <script>
       (function () {
         try {
           var t = localStorage.getItem("ds-theme");
-          document.documentElement.dataset.theme = t === "light" ? "light" : "dark";
+          if (t === "light" || t === "dark") {
+            document.documentElement.dataset.theme = t;
+          } else {
+            document.documentElement.dataset.theme = "light";
+          }
         } catch (e) {
-          document.documentElement.dataset.theme = "dark";
+          document.documentElement.dataset.theme = "light";
+        }
+        try {
+          var meta = document.querySelector('meta[name="theme-color"]');
+          if (meta) {
+            meta.setAttribute(
+              "content",
+              document.documentElement.dataset.theme === "light" ? "#2b2d6e" : "#121820"
+            );
+          }
+        } catch (e2) {
+          /* ignorar */
         }
       })();
     </script>

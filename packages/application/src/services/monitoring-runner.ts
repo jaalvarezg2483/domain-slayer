@@ -9,6 +9,7 @@ import type {
   DnsInspector,
   DomainExpiryProvider,
   HttpConnectivityProbe,
+  SslInspectionResult,
   SslInspector,
 } from "../ports/monitoring.js";
 import { computeDomainExpiryFinal, resolveDomainExpirySource } from "./site-domain-expiry.js";
@@ -49,12 +50,15 @@ export class MonitoringRunner {
   async run(site: Site): Promise<MonitoringCheckResult> {
     const started = Date.now();
     const now = this.deps.now?.() ?? new Date();
-    const host = extractHost(site.url, site.domain);
+    const urlHost = extractHost(site.url, site.domain);
     const thresholds = this.deps.sslAlertDays.length ? this.deps.sslAlertDays : [...DEFAULT_ALERT_DAY_THRESHOLDS];
 
-    let sslResult = await this.deps.ssl.inspectTls(host, 443, site.domain);
-    const dnsResult = await this.deps.dns.inspect(site.domain);
     const httpResult = await this.deps.http.probe(site.url, 8000);
+    /** Host HTTPS tras redirecciones (p. ej. raíz → `www`), acotado al dominio del sitio para no seguir terceros. */
+    const tlsHost = tlsHostnameAfterRedirect(site.domain, urlHost, httpResult.httpsEffectiveUrl);
+    let sslResult = await this.deps.ssl.inspectTls(tlsHost, 443, tlsHost);
+    sslResult = await maybePreferWwwSslCert(this.deps.ssl, site.domain, tlsHost, sslResult);
+    const dnsResult = await this.deps.dns.inspect(site.domain);
     const domainProbe = await this.deps.domainExpiry.probe(site.domain);
 
     let domainExpiryAuto: Date | null = domainProbe.expiry;
@@ -162,4 +166,48 @@ function extractHost(url: string, fallbackDomain: string): string {
   } catch {
     return fallbackDomain;
   }
+}
+
+function tlsHostnameAfterRedirect(siteDomain: string, urlHostname: string, httpsEffectiveUrl: string): string {
+  try {
+    const eff = new URL(httpsEffectiveUrl).hostname.toLowerCase();
+    const dom = siteDomain.trim().toLowerCase();
+    if (!dom) return urlHostname;
+    if (eff === dom || eff.endsWith(`.${dom}`)) return eff;
+  } catch {
+    /* ignore */
+  }
+  return urlHostname;
+}
+
+/**
+ * Muchos sitios sirven el apex y `www` con distinto certificado (distinto `notAfter`). Si el chequeo va al raíz y
+ * `https://www.dominio` tiene un certificado TLS válido con fecha de fin **posterior**, usamos ese para alinear con
+ * lo que suele mostrar el navegador al entrar por `www`.
+ */
+async function maybePreferWwwSslCert(
+  ssl: SslInspector,
+  siteDomain: string,
+  tlsHost: string,
+  primary: SslInspectionResult
+): Promise<SslInspectionResult> {
+  const dom = siteDomain.trim().toLowerCase();
+  const th = tlsHost.trim().toLowerCase();
+  if (!dom || dom.startsWith("www.") || th !== dom) {
+    return primary;
+  }
+  const wwwHost = `www.${dom}`;
+  if (th === wwwHost) {
+    return primary;
+  }
+  const wwwSsl = await ssl.inspectTls(wwwHost, 443, wwwHost);
+  if (wwwSsl.status !== "valid" || !wwwSsl.validTo) {
+    return primary;
+  }
+  const pEnd =
+    primary.status === "valid" && primary.validTo ? primary.validTo.getTime() : 0;
+  if (wwwSsl.validTo.getTime() > pEnd) {
+    return wwwSsl;
+  }
+  return primary;
 }
