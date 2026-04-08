@@ -93,10 +93,7 @@ export function Dashboard() {
           </Link>
         </div>
         {expiryRows.length === 0 ? (
-          <p className="muted">
-            Ningún certificado ni dominio en esta ventana (≤10 días o vencido). En rojo: vencido o menos de 5 días; en
-            naranja: entre 5 y 10 días.
-          </p>
+          <p className="muted">No hay sitios próximos a vencer.</p>
         ) : (
           <>
             <p className="muted small" style={{ marginBottom: "0.75rem" }}>

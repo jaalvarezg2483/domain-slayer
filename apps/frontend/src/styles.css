@@ -544,6 +544,21 @@ body {
   }
 }
 
+.sidebar__welcome {
+  margin: -0.15rem 0 0;
+  padding: 0 0.35rem;
+  font-size: 0.84rem;
+  font-weight: 500;
+  line-height: 1.45;
+  color: var(--muted);
+  text-align: center;
+}
+.sidebar__welcome-name {
+  font-weight: 700;
+  color: var(--text);
+  word-break: break-word;
+}
+
 .sidebar__top .brand {
   border-bottom: none;
   padding-bottom: 0;
@@ -1547,6 +1562,69 @@ body {
   font-weight: 600;
 }
 
+/* Biblioteca: secciones colapsables */
+.library-section--highlight {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px rgba(61, 139, 253, 0.25);
+}
+.library-section__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem 0.75rem;
+}
+.library-section__toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  margin: 0;
+  padding: 0.15rem 0.25rem 0.15rem 0;
+  border: none;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: 1.2rem;
+  font-weight: 700;
+  line-height: 1.25;
+  text-align: left;
+  cursor: pointer;
+  border-radius: 8px;
+  flex: 1;
+  min-width: min(100%, 12rem);
+}
+.library-section__toggle:hover {
+  color: var(--accent);
+}
+.library-section__toggle:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.library-section__chevron {
+  flex-shrink: 0;
+  transition: transform 0.2s ease;
+  color: var(--muted);
+}
+.library-section__toggle:hover .library-section__chevron {
+  color: var(--accent);
+}
+.library-section__chevron--open {
+  transform: rotate(90deg);
+}
+.library-section__title {
+  flex: 1;
+  min-width: 0;
+}
+.library-section__extra {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.library-section__body {
+  margin-top: 0.75rem;
+}
+
 .library-assistant-page .assistant-chat__bubble--assistant {
   max-width: 100%;
   align-self: stretch;
@@ -1960,6 +2038,19 @@ h2 {
 }
 .table.table--dashboard-sites th {
   font-size: 0.68rem;
+}
+
+.site-verify-card__title {
+  font-size: 1.05rem;
+  margin: 0 0 0.35rem;
+}
+.site-verify-card__intro {
+  margin: 0 0 0.75rem;
+  max-width: 52rem;
+  line-height: 1.45;
+}
+.site-verify-card__actions {
+  align-items: center;
 }
 
 .site-detail-stats {

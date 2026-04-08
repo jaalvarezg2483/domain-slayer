@@ -3,6 +3,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { api } from "../api";
 import { Spinner } from "../components/Spinner";
 import { getStoredContactEmails, rememberContactEmail } from "../lib/contact-email-memory";
+import { registrableDomainForLookup } from "../lib/external-verify-links";
 import type { SiteEnvironment, SiteRow } from "../types";
 
 const empty = {
@@ -25,13 +26,6 @@ const empty = {
   domainExpiryManualStr: "",
   sslExpiryManualStr: "",
 };
-
-/** Dominio registrable sin `www.` inicial (misma idea que el backend). */
-function registrableDomainField(domain: string): string {
-  let d = domain.trim().toLowerCase().replace(/\.$/, "");
-  if (d.startsWith("www.")) d = d.slice(4);
-  return d;
-}
 
 function toSitePayload(form: typeof empty) {
   return {
@@ -70,7 +64,7 @@ export function SiteForm() {
   const [emailSuggestions, setEmailSuggestions] = useState<string[]>(() => getStoredContactEmails());
   const [probeHttpsBusy, setProbeHttpsBusy] = useState(false);
   const isNew = !id || id === "new";
-  const regDom = registrableDomainField(form.domain);
+  const regDom = registrableDomainForLookup(form.domain);
 
   useEffect(() => {
     if (!id || id === "new") return;

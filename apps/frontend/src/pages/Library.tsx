@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { useAuthMode } from "../auth-context";
 import { api, type DocumentEmbeddedMediaItem } from "../api";
 import { ConfirmModal } from "../components/ConfirmModal";
+import { LibrarySection } from "../components/LibrarySection";
 import { DocumentTextWithEmbeddings } from "../components/DocumentTextWithEmbeddings";
 import { Spinner } from "../components/Spinner";
 import { isAdminSession } from "../lib/auth-session";
@@ -226,15 +227,12 @@ export function Library() {
       )}
 
       {isAdmin ? (
-      <div
-        className="card"
-        style={{
-          borderColor: "var(--accent)",
-          boxShadow: "0 0 0 1px rgba(61, 139, 253, 0.25)",
-        }}
+      <LibrarySection
+        sectionId="library-add"
+        title="Añadir documentación a la biblioteca"
+        className="library-section--highlight"
       >
-        <h2 style={{ fontSize: "1.2rem", marginTop: 0 }}>Añadir documentación a la biblioteca</h2>
-        <p className="muted small">
+        <p className="muted small" style={{ marginTop: 0 }}>
           Formatos: PDF, Word <code>.docx</code>, Excel <code>.xlsx</code>/<code>.xls</code>, CSV o TXT (máx. 35 MB). El
           texto se extrae y se usa para la búsqueda. Word antiguo <code>.doc</code> no está soportado. Use{" "}
           <strong>sin sitio</strong> para hojas con datos de múltiples aplicaciones.
@@ -330,12 +328,13 @@ export function Library() {
             </Link>
           </div>
         </div>
-      </div>
+      </LibrarySection>
       ) : null}
 
-      <div className="card">
-        <div className="row-between wrap gap" style={{ marginBottom: "0.75rem" }}>
-          <h2 style={{ fontSize: "1.2rem", margin: 0 }}>Documentos en la biblioteca</h2>
+      <LibrarySection
+        sectionId="library-list"
+        title="Documentos en la biblioteca"
+        headerExtra={
           <button type="button" className="btn small ghost" disabled={libLoading} onClick={() => void loadLibraryList()}>
             {libLoading ? (
               <>
@@ -345,7 +344,8 @@ export function Library() {
               "Actualizar listado"
             )}
           </button>
-        </div>
+        }
+      >
         <p className="muted small" style={{ marginTop: 0 }}>
           Use <strong>Descargar</strong> para guardar el archivo original en su equipo.
           {isAdmin ? (
@@ -441,10 +441,9 @@ export function Library() {
             Mostrando {libDocs.length} de {libTotal}. Aumente el límite en el API si necesita ver más.
           </p>
         )}
-      </div>
+      </LibrarySection>
 
-      <div className="card">
-        <h2 style={{ fontSize: "1.2rem", marginTop: 0 }}>Buscar en la biblioteca</h2>
+      <LibrarySection sectionId="library-search" title="Buscar en la biblioteca">
         <div className="library-search-toolbar">
           <label className="library-search-toolbar__keywords">
             <span className="muted small">Palabras clave</span>
@@ -500,7 +499,7 @@ export function Library() {
               : `${total} resultado(s) para «${lastQuery}».`}
           </p>
         )}
-      </div>
+      </LibrarySection>
 
       {err && <div className="card error">{err}</div>}
 

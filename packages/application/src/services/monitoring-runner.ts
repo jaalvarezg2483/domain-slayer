@@ -14,6 +14,7 @@ import type {
 } from "../ports/monitoring.js";
 import { computeDomainExpiryFinal, resolveDomainExpirySource } from "./site-domain-expiry.js";
 import { computeSslExpiryFinal, resolveSslExpirySource } from "./site-ssl-expiry.js";
+import { tlsHostnameAfterRedirect } from "./site-registrable-domain.js";
 
 function monitoringCalendarTz(): string {
   const z = process.env.CALENDAR_TIME_ZONE?.trim();
@@ -170,25 +171,6 @@ function extractHost(url: string, fallbackDomain: string): string {
   } catch {
     return fallbackDomain;
   }
-}
-
-/** Dominio «raíz» para TLS/redirecciones: quita un prefijo `www.` si el inventario lo guardó así (evita saltarse la lógica www). */
-function registrableSiteDomain(siteDomain: string): string {
-  let d = siteDomain.trim().toLowerCase().replace(/\.$/, "");
-  if (d.startsWith("www.")) d = d.slice(4);
-  return d;
-}
-
-function tlsHostnameAfterRedirect(siteDomain: string, urlHostname: string, httpsEffectiveUrl: string): string {
-  const dom = registrableSiteDomain(siteDomain);
-  try {
-    const eff = new URL(httpsEffectiveUrl).hostname.toLowerCase().replace(/\.$/, "");
-    if (!dom) return urlHostname.trim().toLowerCase().replace(/\.$/, "");
-    if (eff === dom || eff.endsWith(`.${dom}`)) return eff;
-  } catch {
-    /* ignore */
-  }
-  return urlHostname.trim().toLowerCase().replace(/\.$/, "");
 }
 
 /**

@@ -587,7 +587,7 @@ export function MonitoringScheduleSettings() {
           Última revisión general:{" "}
           {form.lastScheduledRunAt ? new Date(form.lastScheduledRunAt).toLocaleString() : "sin registro"}
           {" · "}
-          Última revisión diaria (sitios por vencer):{" "}
+          Última revisión diaria (sitios próximos a vencer):{" "}
           {form.lastProximityDailyRunAt ? new Date(form.lastProximityDailyRunAt).toLocaleString() : "sin registro"}
           {form.updatedAt && (
             <>

@@ -1,21 +1,9 @@
 import type { Site } from "@domain-slayer/domain";
 import type { MonitoringCheckResult } from "../monitoring/types.js";
+import type { SiteRepository } from "../ports/site-repository.js";
 import { computeDomainExpiryFinal } from "./site-domain-expiry.js";
 import { computeSslExpiryFinal } from "./site-ssl-expiry.js";
-import type { SiteRepository } from "../ports/site-repository.js";
-
-function registrableSiteDomain(siteDomain: string): string {
-  let d = siteDomain.trim().toLowerCase().replace(/\.$/, "");
-  if (d.startsWith("www.")) d = d.slice(4);
-  return d;
-}
-
-function httpsHostUnderInventoryDomain(hostname: string, siteDomain: string): boolean {
-  const dom = registrableSiteDomain(siteDomain);
-  const h = hostname.trim().toLowerCase().replace(/\.$/, "");
-  if (!dom) return false;
-  return h === dom || h.endsWith(`.${dom}`);
-}
+import { httpsHostUnderInventoryDomain } from "./site-registrable-domain.js";
 
 /** Misma «ubicación» HTTPS (host, ruta y query) salvo barra final opcional. */
 function sameHttpsLocation(a: string, b: string): boolean {

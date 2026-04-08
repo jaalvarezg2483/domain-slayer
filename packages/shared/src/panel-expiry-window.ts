@@ -53,7 +53,7 @@ function collectPanelProximityLines(site: PanelExpirySiteSlice, now: Date): Pane
   const dom = coerceDate(site.domainExpiryFinal);
   push(dom, site.domainExpiryStatus === "expired");
 
-  /* Si el chequeo marcó «por vencer» pero la fecha cae fuera de la ventana corta del panel (≤10 días), igual priorizar en listados. */
+  /* Si el chequeo marcó «próximos a vencer» pero la fecha cae fuera de la ventana corta del panel (≤10 días), igual priorizar en listados. */
   if (lines.length === 0) {
     const sslRed = site.sslStatus === "expired";
     const domRed = site.domainExpiryStatus === "expired";
@@ -72,7 +72,7 @@ function collectPanelProximityLines(site: PanelExpirySiteSlice, now: Date): Pane
     }
   }
 
-  /* Mismo horizonte que el monitoreo (umbrales hasta 60 días): «por vencer» en la UI debe subir aunque el estado no esté refrescado. */
+  /* Mismo horizonte que el monitoreo (umbrales hasta 60 días): «próximos a vencer» en la UI debe subir aunque el estado no esté refrescado. */
   const alertMaxDays = Math.max(...DEFAULT_ALERT_DAY_THRESHOLDS);
   const tz = panelCalendarTz();
   for (const date of [
@@ -109,7 +109,7 @@ function sslTierOrange(ssl: string | undefined): boolean {
 }
 
 /**
- * 0 = rojo (crítico / vencido / error SSL grave), 1 = naranja (atención / por vencer), 2 = resto.
+ * 0 = rojo (crítico / vencido / error SSL grave), 1 = naranja (atención / próximos a vencer), 2 = resto.
  * Combina panel de fechas con los mismos estados que muestra la UI.
  */
 function listUrgencyTier(site: PanelProximitySortSite, lines: PanelProximityLine[]): number {

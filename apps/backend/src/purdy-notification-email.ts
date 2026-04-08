@@ -39,10 +39,10 @@ function fmtDateTimeEs(d: Date | string | null | undefined): string {
 
 export function alertTypeLabel(t: AlertType): string {
   const m: Partial<Record<AlertType, string>> = {
-    ssl_expiring: "SSL por vencer",
+    ssl_expiring: "SSL próximo a vencer",
     ssl_expired: "SSL vencido",
     ssl_error: "Error SSL",
-    domain_expiring: "Dominio por vencer / vencido",
+    domain_expiring: "Dominio próximo a vencer / vencido",
     domain_unknown_expiry: "Dominio sin fecha",
     domain_registry_differs_from_manual: "Fecha dominio (manual vs registro)",
     dns_error: "DNS",

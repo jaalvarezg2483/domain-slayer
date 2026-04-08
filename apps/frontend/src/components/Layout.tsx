@@ -164,6 +164,11 @@ export function Layout() {
             <ThemeToggle compact />
           </div>
         </div>
+        {showLogout && session ? (
+          <p className="sidebar__welcome">
+            Bienvenido, <strong className="sidebar__welcome-name">{sidebarUserLabel(session)}</strong>
+          </p>
+        ) : null}
         <nav className="nav" aria-label="Principal">
           <div className="nav-panel">
             <p className="nav-section-label">Menú</p>
@@ -230,12 +235,6 @@ export function Layout() {
                   <span className="nav-link__text">Nuevo sitio</span>
                 </NavLink>
               </>
-            ) : null}
-
-            {showLogout && session ? (
-              <p className="nav-panel__display-name muted small" style={{ margin: "0.35rem 0.45rem 0" }}>
-                {sidebarUserLabel(session)}
-              </p>
             ) : null}
 
             {showLogout ? (

@@ -12,7 +12,7 @@ const health: Record<string, string> = {
 
 const ssl: Record<string, string> = {
   valid: "Válido",
-  expiring_soon: "Por vencer",
+  expiring_soon: "Próximos a vencer",
   expired: "Vencido",
   tls_error: "Error TLS",
   hostname_mismatch: "Nombre no coincide",
@@ -48,7 +48,7 @@ const check: Record<string, string> = {
 
 const domainExpiry: Record<string, string> = {
   ok: "Vigente",
-  expiring_soon: "Por vencer",
+  expiring_soon: "Próximos a vencer",
   expired: "Vencido",
   unknown: "Desconocido",
 };
@@ -101,10 +101,10 @@ export function labelEnvironment(env: string): string {
 }
 
 const alertType: Record<string, string> = {
-  ssl_expiring: "SSL por vencer",
+  ssl_expiring: "SSL próximo a vencer",
   ssl_expired: "SSL vencido",
   ssl_error: "Error SSL/TLS",
-  domain_expiring: "Dominio por vencer",
+  domain_expiring: "Dominio próximo a vencer",
   domain_unknown_expiry: "Dominio sin fecha",
   domain_registry_differs_from_manual: "Registro distinto al manual",
   dns_error: "Error DNS",

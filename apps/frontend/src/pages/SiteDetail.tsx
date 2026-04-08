@@ -8,6 +8,12 @@ import { SiteActiveBadge } from "../components/SiteActiveBadge";
 import { Spinner } from "../components/Spinner";
 import { readAuthPayload } from "../lib/auth-session";
 import { notesMatchDb } from "../lib/draft-after-save";
+import {
+  icannLookupUrl,
+  primarySiteUrl,
+  siteUrlWithHttpCacheBuster,
+  whoisComLookupUrl,
+} from "../lib/external-verify-links";
 import { buildOperationalReport, labelCheckStatus, labelDomainExpiryStatus, labelHttpStatus } from "../lib/status-labels";
 import type { SiteRow } from "../types";
 
@@ -224,6 +230,10 @@ export function SiteDetail() {
   if (!site) return <div className="muted">Cargando…</div>;
 
   const report = buildOperationalReport(site);
+  const openSiteHref = primarySiteUrl(site.url, site.domain);
+  const openSiteNoCacheHref = siteUrlWithHttpCacheBuster(site.url, site.domain);
+  const icannHref = icannLookupUrl(site.domain);
+  const whoisHref = whoisComLookupUrl(site.domain);
 
   const DAY_MS = 86_400_000;
   const sslTlsRaw = site.sslValidTo;
@@ -281,6 +291,37 @@ export function SiteDetail() {
             </button>
           </div>
         ) : null}
+      </div>
+
+      <div className="card site-verify-card">
+        <h2 className="site-verify-card__title">Comprobar en el navegador</h2>
+        <p className="muted small site-verify-card__intro">
+          Enlaces en pestaña nueva. «Sin caché HTTP» añade un parámetro de tiempo para esquivar respuestas en caché del
+          CDN o del propio navegador; <strong>no</strong> equivale a ventana privada (las cookies del perfil siguen
+          activas). Para aislar sesión por completo, abra el enlace en incógnito manualmente.
+        </p>
+        <div className="row gap wrap site-verify-card__actions">
+          {openSiteHref ? (
+            <a className="btn ghost" href={openSiteHref} target="_blank" rel="noopener noreferrer">
+              Abrir sitio
+            </a>
+          ) : null}
+          {openSiteNoCacheHref ? (
+            <a className="btn ghost" href={openSiteNoCacheHref} target="_blank" rel="noopener noreferrer">
+              Abrir sitio (sin caché HTTP)
+            </a>
+          ) : null}
+          {icannHref ? (
+            <a className="btn ghost" href={icannHref} target="_blank" rel="noopener noreferrer">
+              RDAP / dominio (ICANN)
+            </a>
+          ) : null}
+          {whoisHref ? (
+            <a className="btn ghost" href={whoisHref} target="_blank" rel="noopener noreferrer">
+              WHOIS (whois.com)
+            </a>
+          ) : null}
+        </div>
       </div>
 
       <div className="grid stats site-detail-stats">
