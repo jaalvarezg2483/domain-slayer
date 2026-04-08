@@ -12,8 +12,18 @@ export interface SslInspectionResult {
   errorMessage: string | null;
 }
 
+export type SslInspectTlsOptions = {
+  /** Forzar familia al resolver el host (p. ej. `4` si IPv6 elige un origen distinto o falla el handshake a `www`). */
+  dnsFamily?: 4 | 6;
+};
+
 export interface SslInspector {
-  inspectTls(hostname: string, port?: number, sniHostname?: string): Promise<SslInspectionResult>;
+  inspectTls(
+    hostname: string,
+    port?: number,
+    sniHostname?: string,
+    options?: SslInspectTlsOptions
+  ): Promise<SslInspectionResult>;
 }
 
 export interface DnsInspectionResult {

@@ -1,5 +1,6 @@
+import dns from "node:dns";
 import tls from "node:tls";
-import type { SslInspectionResult, SslInspector } from "@domain-slayer/application";
+import type { SslInspectionResult, SslInspector, SslInspectTlsOptions } from "@domain-slayer/application";
 
 function parseCertDates(cert: tls.DetailedPeerCertificate): { from: Date | null; to: Date | null } {
   const validFrom = cert.valid_from ? new Date(cert.valid_from) : null;
@@ -61,15 +62,27 @@ function pickServiceCertificate(peer: tls.DetailedPeerCertificate, servername: s
 export class SslInspectorNode implements SslInspector {
   constructor(private readonly timeoutMs: number) {}
 
-  inspectTls(hostname: string, port = 443, sniHostname?: string): Promise<SslInspectionResult> {
+  inspectTls(
+    hostname: string,
+    port = 443,
+    sniHostname?: string,
+    options?: SslInspectTlsOptions
+  ): Promise<SslInspectionResult> {
     const servername = sniHostname ?? hostname;
     return new Promise((resolve) => {
-      const socket = tls.connect({
+      const connectOpts: tls.ConnectionOptions = {
         host: hostname,
         port,
         servername,
         rejectUnauthorized: false,
-      });
+      };
+      const fam = options?.dnsFamily;
+      if (fam === 4 || fam === 6) {
+        connectOpts.lookup = (h, _opts, cb) => {
+          dns.lookup(h, { family: fam }, cb);
+        };
+      }
+      const socket = tls.connect(connectOpts);
       const done = (r: SslInspectionResult) => {
         clearTimeout(timer);
         try {

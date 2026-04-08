@@ -18,7 +18,10 @@ async function headOrGet(url: string, timeoutMs: number): Promise<boolean> {
   }
 }
 
-/** HEAD luego GET; devuelve URL final (p. ej. tras 301 apex → www) aunque la comprobación «ok» falle. */
+/**
+ * Sigue redirecciones HTTPS como el navegador. **GET primero**: muchos orígenes responden 200 en HEAD en el apex
+ * sin redirigir y solo envían 301/302 a `www` en GET; así `finalUrl` coincide con la página que abre el usuario.
+ */
 async function httpsFollow(httpsUrl: string, timeoutMs: number): Promise<{ ok: boolean; finalUrl: string }> {
   const tryOnce = async (method: "HEAD" | "GET") => {
     const ctrl = new AbortController();
@@ -31,10 +34,10 @@ async function httpsFollow(httpsUrl: string, timeoutMs: number): Promise<{ ok: b
     }
   };
   try {
-    return await tryOnce("HEAD");
+    return await tryOnce("GET");
   } catch {
     try {
-      return await tryOnce("GET");
+      return await tryOnce("HEAD");
     } catch {
       return { ok: false, finalUrl: httpsUrl };
     }

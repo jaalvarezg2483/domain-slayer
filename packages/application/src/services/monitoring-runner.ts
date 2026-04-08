@@ -54,10 +54,13 @@ export class MonitoringRunner {
     const thresholds = this.deps.sslAlertDays.length ? this.deps.sslAlertDays : [...DEFAULT_ALERT_DAY_THRESHOLDS];
 
     const httpResult = await this.deps.http.probe(site.url, 8000);
-    /** Host HTTPS tras redirecciones (p. ej. raíz → `www`), acotado al dominio del sitio para no seguir terceros. */
-    const tlsHost = tlsHostnameAfterRedirect(site.domain, urlHost, httpResult.httpsEffectiveUrl);
-    let sslResult = await this.deps.ssl.inspectTls(tlsHost, 443, tlsHost);
-    sslResult = await maybePreferWwwSslCert(this.deps.ssl, site.domain, tlsHost, sslResult);
+    /** Misma política para todos los sitios: cert = el de la página pública (URL HTTPS final del probe + reglas www/apex). */
+    const sslResult = await inspectTlsMatchingPublicPage(
+      this.deps.ssl,
+      site.domain,
+      urlHost,
+      httpResult.httpsEffectiveUrl
+    );
     const dnsResult = await this.deps.dns.inspect(site.domain);
     const domainProbe = await this.deps.domainExpiry.probe(site.domain);
 
@@ -168,52 +171,57 @@ function extractHost(url: string, fallbackDomain: string): string {
   }
 }
 
+/** Dominio «raíz» para TLS/redirecciones: quita un prefijo `www.` si el inventario lo guardó así (evita saltarse la lógica www). */
+function registrableSiteDomain(siteDomain: string): string {
+  let d = siteDomain.trim().toLowerCase().replace(/\.$/, "");
+  if (d.startsWith("www.")) d = d.slice(4);
+  return d;
+}
+
 function tlsHostnameAfterRedirect(siteDomain: string, urlHostname: string, httpsEffectiveUrl: string): string {
+  const dom = registrableSiteDomain(siteDomain);
   try {
-    const eff = new URL(httpsEffectiveUrl).hostname.toLowerCase();
-    const dom = siteDomain.trim().toLowerCase();
-    if (!dom) return urlHostname;
+    const eff = new URL(httpsEffectiveUrl).hostname.toLowerCase().replace(/\.$/, "");
+    if (!dom) return urlHostname.trim().toLowerCase().replace(/\.$/, "");
     if (eff === dom || eff.endsWith(`.${dom}`)) return eff;
   } catch {
     /* ignore */
   }
-  return urlHostname;
+  return urlHostname.trim().toLowerCase().replace(/\.$/, "");
 }
 
 /**
- * Muchos sitios sirven el apex y `www` con distinto certificado (distinto `notAfter`). Tras inspeccionar el apex,
- * si `www` tiene cert válido y vence **antes**, usamos ese (quien entra por www suele verlo; antes solo preferíamos
- * www cuando vencía después). Si el primario no es válido y www vence después, seguimos prefiriendo www.
+ * Certificado TLS alineado con lo que muestra el navegador al abrir la página:
+ * 1) Host = URL HTTPS **después de redirecciones** (ya acotada al dominio del sitio en `tlsHostnameAfterRedirect`).
+ * 2) Si ese host es el **apex**, se inspecciona **primero `www`** (donde suele estar el cert “de la web”) y solo si
+ *    no es válido se usa el apex.
+ * 3) Cualquier otro subdominio (`shop.`, `admin.`, etc.) se inspecciona tal cual (es el host de la página).
  */
-async function maybePreferWwwSslCert(
+async function inspectTlsMatchingPublicPage(
   ssl: SslInspector,
   siteDomain: string,
-  tlsHost: string,
-  primary: SslInspectionResult
+  urlHostname: string,
+  httpsEffectiveUrl: string
 ): Promise<SslInspectionResult> {
-  const dom = siteDomain.trim().toLowerCase();
-  const th = tlsHost.trim().toLowerCase();
-  if (!dom || dom.startsWith("www.") || th !== dom) {
-    return primary;
+  const tlsHost = tlsHostnameAfterRedirect(siteDomain, urlHostname, httpsEffectiveUrl);
+  const dom = registrableSiteDomain(siteDomain);
+  const th = tlsHost.trim().toLowerCase().replace(/\.$/, "");
+  if (!dom) {
+    return ssl.inspectTls(th, 443, th);
   }
   const wwwHost = `www.${dom}`;
   if (th === wwwHost) {
-    return primary;
+    return ssl.inspectTls(wwwHost, 443, wwwHost);
   }
-  const wwwSsl = await ssl.inspectTls(wwwHost, 443, wwwHost);
-  if (wwwSsl.status !== "valid" || !wwwSsl.validTo) {
-    return primary;
+  if (th === dom) {
+    let wwwFirst = await ssl.inspectTls(wwwHost, 443, wwwHost);
+    if (wwwFirst.status !== "valid" || !wwwFirst.validTo) {
+      wwwFirst = await ssl.inspectTls(wwwHost, 443, wwwHost, { dnsFamily: 4 });
+    }
+    if (wwwFirst.status === "valid" && wwwFirst.validTo) {
+      return wwwFirst;
+    }
+    return ssl.inspectTls(dom, 443, dom);
   }
-  const pEnd =
-    primary.status === "valid" && primary.validTo ? primary.validTo.getTime() : 0;
-  const wEnd = wwwSsl.validTo.getTime();
-  /* Apex y www suelen tener cert distintos. Si ambos son válidos, usamos el que vence antes: quien entra
-   * por www ve a menudo ese, y las alertas quedan alineadas con el caso más restrictivo. */
-  if (primary.status === "valid" && primary.validTo) {
-    return wEnd < pEnd ? wwwSsl : primary;
-  }
-  if (wEnd > pEnd) {
-    return wwwSsl;
-  }
-  return primary;
+  return ssl.inspectTls(th, 443, th);
 }
