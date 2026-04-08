@@ -269,9 +269,9 @@ export function Layout() {
         <div className="main-inner">
           {!authRequired ? (
             <div className="card layout-auth-banner" role="status">
-              <strong>Sin inicio de sesión obligatorio:</strong> el servidor no tiene configurado{" "}
-              <code className="small">JWT_SECRET</code>. Cualquiera que abra esta URL puede usar la aplicación. Para
-              exigir login, defina <code className="small">JWT_SECRET</code> (y usuarios) en el backend y reinicie.
+              <strong>Sin inicio de sesión obligatorio:</strong> cualquiera con el enlace puede usar la aplicación. Para
+              exigir usuario y contraseña, quien administra el sistema debe activar el acceso restringido en la
+              configuración del servidor.
             </div>
           ) : null}
           <Outlet />

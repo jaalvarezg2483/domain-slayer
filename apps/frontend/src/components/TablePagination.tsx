@@ -26,7 +26,7 @@ export function TablePagination({
   return (
     <div className="table-pagination" role="navigation" aria-label={`Paginación de ${itemLabel}`}>
       <span className="muted small table-pagination__meta">
-        {from}–{to} de {total}
+        {from} a {to} de {total}
       </span>
       <div className="table-pagination__btns">
         <button

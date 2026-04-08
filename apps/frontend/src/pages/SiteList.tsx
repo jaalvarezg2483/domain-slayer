@@ -98,9 +98,9 @@ export function SiteList() {
             <IconCheckCircle />
           </span>
           <div className="flash-notice__content">
-            <span className="flash-notice__title">Chequeo completado</span>
+            <span className="flash-notice__title">Listo</span>
             <span className="flash-notice__text">
-              Sitios web revisados; las fechas de caducidad de SSL y de dominio quedaron actualizadas.
+              Se actualizaron las fechas de certificados y dominios según la última revisión.
             </span>
           </div>
           <button
@@ -157,7 +157,7 @@ export function SiteList() {
               className="btn btn-check-all sites-toolbar__btn"
               disabled={checkingAll}
               aria-busy={checkingAll}
-              title="Ejecutar chequeo SSL, DNS y HTTP en todos los sitios"
+              title="Revisar certificados, dominio y respuesta web de todos los sitios"
               onClick={() => void runCheckAll()}
             >
               {checkingAll ? (
@@ -168,7 +168,7 @@ export function SiteList() {
               ) : (
                 <>
                   <IconRefreshCw />
-                  Chequear todos
+                  Revisar todos
                 </>
               )}
             </button>
@@ -183,10 +183,10 @@ export function SiteList() {
             <tr>
               <th>Nombre</th>
               <th>Ambiente</th>
-              <th title="Si está inactivo, no entra en chequeos globales">Estado</th>
+              <th title="Los inactivos no se incluyen al revisar todos">Estado</th>
               <th>Salud</th>
               <th>SSL</th>
-              <th title="Vencimiento del certificado TLS (HTTPS)">SSL vence</th>
+              <th title="Vencimiento del certificado de seguridad (HTTPS)">SSL vence</th>
               <th title="Vencimiento del registro de dominio">Dominio exp.</th>
             </tr>
           </thead>
@@ -212,7 +212,7 @@ export function SiteList() {
                   title={
                     s.sslValidToFinal || s.sslValidTo
                       ? s.sslExpirySource === "manual"
-                        ? "Fin de validez: origen manual — puede diferir del chequeo TLS y del navegador. Revise la ficha del sitio."
+                        ? "La fecha de fin de validez es manual y puede no coincidir con la última revisión ni con el navegador. Abra la ficha del sitio para comprobarlo."
                         : "Fin de validez del certificado (fecha que usa el sistema)"
                       : undefined
                   }

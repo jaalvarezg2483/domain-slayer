@@ -51,13 +51,12 @@ export type MonitoringScheduleDto = {
   proximityRunHour: number;
   lastProximityDailyRunAt: string | null;
   updatedAt: string;
-  /** Solo lectura (API): el servidor tiene SMTP_HOST; si es false, en producción faltan variables de entorno. */
+  /** Solo lectura: si es false, el servidor no tiene configurado el correo saliente. */
   smtpConfigured?: boolean;
 };
 
 const BACKEND_HINT =
-  "Arranque el backend (raíz del repo: npm run dev:backend o npm run start:backend). Debe escuchar en el puerto 3000 " +
-  "o defina VITE_API_BASE_URL con la URL correcta del API.";
+  "Compruebe que el servicio de la aplicación esté en marcha y que esta página apunte a la dirección correcta.";
 
 export const AUTH_STORAGE_KEY = "ds_jwt";
 
@@ -176,6 +175,12 @@ export const api = {
       }),
     removeDocumentLink: (siteId: string, documentId: string) =>
       request<void>(`/sites/${siteId}/document-links/${documentId}`, { method: "DELETE" }),
+    /** GET HTTPS con redirecciones (servidor); alinea la URL del inventario con la página real. */
+    probeHttps: (url: string) =>
+      request<{ httpsEffectiveUrl: string; httpsOk: boolean; httpOk: boolean }>(`/sites/probe-https`, {
+        method: "POST",
+        body: JSON.stringify({ url }),
+      }),
   },
   documents: {
     list: (q?: { limit?: number; offset?: number }) =>

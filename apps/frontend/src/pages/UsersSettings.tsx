@@ -167,7 +167,7 @@ export function UsersSettings() {
           Añadir usuario
         </h2>
         <label>
-          Nombre (pantalla) — obligatorio; es lo que verá en el menú
+          Nombre en pantalla (obligatorio; es el que sale en el menú)
           <input
             className="input"
             type="text"

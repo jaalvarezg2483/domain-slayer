@@ -227,8 +227,8 @@ export function MonitoringScheduleSettings() {
     <div className="stack narrow">
       <h1>Programación</h1>
       <p className="muted small">
-        Defina cuándo se ejecutan los chequeos automáticos y cómo recibir avisos. Use las secciones siguientes para
-        desplegar u ocultar cada bloque.
+        Aquí configura cuándo se revisan los sitios de forma automática y cómo quiere recibir los avisos. Cada bloque se
+        puede abrir o cerrar con el título.
       </p>
 
       {form.smtpConfigured === false && (
@@ -240,15 +240,11 @@ export function MonitoringScheduleSettings() {
             color: "var(--text-muted)",
           }}
         >
-          <strong style={{ color: "var(--text)" }}>Correo en el servidor</strong>
+          <strong style={{ color: "var(--text)" }}>Correo no disponible en el servidor</strong>
           <p className="small" style={{ margin: "0.5rem 0 0" }}>
-            El API que atiende esta página <strong>no</strong> ve la variable <code>SMTP_HOST</code> (por eso «Probar» no puede enviar
-            correo). En local suele estar en <code>.env</code> en la raíz o en <code>apps/backend</code>; en Railway u otro PaaS hay que
-            poner las variables en el <strong>servicio que ejecuta el backend Node</strong> (API), no solo en el build del frontend ni en
-            otro contenedor. Nombres exactos y en mayúsculas: <code>SMTP_HOST</code>, <code>SMTP_PORT</code>, <code>SMTP_SECURE</code>{" "}
-            (p. ej. <code>false</code> con puerto 587), <code>SMTP_USER</code>, <code>SMTP_PASS</code>, <code>SMTP_FROM</code>. Guarde en
-            el panel, lance un <strong>nuevo deploy</strong> del servicio API y recargue esta página: el aviso debería desaparecer si el
-            proceso ya recibe <code>SMTP_HOST</code>.
+            La prueba de correo no podrá enviarse hasta que quien administra esta aplicación active el envío de correo en
+            el servidor. Si usted es usuario, coménteselo al responsable técnico; si lo administra usted, revise la
+            configuración del servicio de correo del entorno donde corre la aplicación.
           </p>
         </div>
       )}
@@ -303,8 +299,8 @@ export function MonitoringScheduleSettings() {
 
       <SettingsCollapse
         id="monitoring-schedule-checks"
-        title="Programación de chequeos"
-        subtitle="Activar chequeos, frecuencia, días, hora y chequeo diario de sitios próximos a vencer."
+        title="Programación de revisiones"
+        subtitle="Activar revisiones automáticas, frecuencia, días, hora y aviso diario de sitios próximos a vencer."
       >
         <div className="form-grid">
         <label className="span-2 form-checkbox-row">
@@ -314,16 +310,16 @@ export function MonitoringScheduleSettings() {
             onChange={(e) => setForm({ ...form, enabled: e.target.checked })}
           />
           <span className="form-checkbox-row__text">
-            <span className="form-checkbox-row__title">Activar chequeos programados</span>
-            <span className="muted small">Si está desactivado, no hay chequeos automáticos en esta programación.</span>
+            <span className="form-checkbox-row__title">Activar revisiones programadas</span>
+            <span className="muted small">Si está desactivado, no se ejecutan revisiones automáticas con esta programación.</span>
           </span>
         </label>
 
         <div className="span-2 schedule-assistant">
-          <h2 className="schedule-assistant__title">Cuándo ejecutar el chequeo</h2>
+          <h2 className="schedule-assistant__title">Cuándo ejecutar la revisión</h2>
           <p className="muted small schedule-assistant__intro">
-            Indique con qué frecuencia y a qué hora deben ejecutarse los chequeos. El domingo cuenta como primer día de la
-            semana en el calendario. El apartado de «sitios por vencer» es independiente y está más abajo.
+            Elija cada cuánto y a qué hora deben ejecutarse las revisiones automáticas. En el calendario, el domingo es el
+            primer día de la semana. El aviso diario de sitios próximos a vencer es aparte y está más abajo.
           </p>
 
           <label className="span-2">
@@ -339,7 +335,7 @@ export function MonitoringScheduleSettings() {
               <option value="weekly">Semanal</option>
               <option value="biweekly">Bisemanal (una semana sí, otra no)</option>
               <option value="monthly_first">Mensual (solo el primer Lun/Mar/… de ese día en el mes)</option>
-              <option value="interval">Cada N días (desde el último chequeo)</option>
+              <option value="interval">Cada N días (desde la última revisión)</option>
               <option value="custom">Avanzado (solo administradores)</option>
             </select>
           </label>
@@ -415,7 +411,7 @@ export function MonitoringScheduleSettings() {
                   }))
                 }
               />
-              <span className="muted small">Cuenta desde el último chequeo programado; la hora es la del reloj de abajo.</span>
+              <span className="muted small">Cuenta desde la última revisión programada; la hora es la del reloj de abajo.</span>
             </label>
           ) : null}
 
@@ -455,7 +451,7 @@ export function MonitoringScheduleSettings() {
           ) : null}
 
           <p className="span-2 muted small schedule-assistant__summary" style={{ margin: 0 }}>
-            <strong>Resumen:</strong> {humanSummary(visual) || "—"}
+            <strong>Resumen:</strong> {humanSummary(visual) || "sin definir"}
           </p>
         </div>
 
@@ -467,9 +463,9 @@ export function MonitoringScheduleSettings() {
             marginTop: "0.25rem",
           }}
         >
-          <h2 style={{ fontSize: "1.05rem", margin: "0 0 0.25rem" }}>Chequeo diario (solo próximos a vencer)</h2>
+          <h2 style={{ fontSize: "1.05rem", margin: "0 0 0.25rem" }}>Revisión diaria (solo próximos a vencer)</h2>
           <p className="muted small" style={{ margin: "0 0 0.75rem" }}>
-            Además del chequeo general, puede activar una revisión <strong>una vez al día</strong> solo para los sitios que
+            Además de la revisión general, puede activar un repaso <strong>una vez al día</strong> solo para los sitios que
             en el panel aparecen como próximos a vencer (certificado o dominio). Así se detecta antes si ya renovaron. Si un
             sitio deja de estar en esa situación, puede recibir un aviso positivo por los mismos medios que configure abajo
             (correo o Teams), si los tiene activados.
@@ -481,8 +477,8 @@ export function MonitoringScheduleSettings() {
               onChange={(e) => setForm({ ...form, proximityDailyEnabled: e.target.checked })}
             />
             <span className="form-checkbox-row__text">
-              <span className="form-checkbox-row__title">Activar chequeo diario de proximidad</span>
-              <span className="muted small">No requiere tener activado el chequeo programado global.</span>
+              <span className="form-checkbox-row__title">Activar revisión diaria de proximidad</span>
+              <span className="muted small">No requiere tener activada la programación global de arriba.</span>
             </span>
           </label>
           <div className="span-2 schedule-time-row">
@@ -509,7 +505,7 @@ export function MonitoringScheduleSettings() {
       <SettingsCollapse
         id="monitoring-schedule-notify"
         title="Programación de notificaciones"
-        subtitle="Correo, Microsoft Teams y cuándo enviar el aviso tras un chequeo."
+        subtitle="Correo, Microsoft Teams y cuándo enviar el aviso después de cada revisión."
       >
         <div className="form-grid">
         <label className="span-2 form-checkbox-row">
@@ -580,7 +576,7 @@ export function MonitoringScheduleSettings() {
             <option value="alerts_only">
               Solo si hay alertas abiertas o sitios en ventana de vencimiento del panel (si no, no se envía nada)
             </option>
-            <option value="always">Siempre tras cada chequeo programado</option>
+            <option value="always">Siempre tras cada revisión programada</option>
           </select>
         </label>
         </div>
@@ -588,11 +584,11 @@ export function MonitoringScheduleSettings() {
 
       {(form.lastScheduledRunAt || form.lastProximityDailyRunAt || form.updatedAt) && (
         <p className="muted small" style={{ margin: "0.25rem 0 0" }}>
-          Último chequeo general:{" "}
-          {form.lastScheduledRunAt ? new Date(form.lastScheduledRunAt).toLocaleString() : "—"}
+          Última revisión general:{" "}
+          {form.lastScheduledRunAt ? new Date(form.lastScheduledRunAt).toLocaleString() : "sin registro"}
           {" · "}
-          Último chequeo diario (sitios por vencer):{" "}
-          {form.lastProximityDailyRunAt ? new Date(form.lastProximityDailyRunAt).toLocaleString() : "—"}
+          Última revisión diaria (sitios por vencer):{" "}
+          {form.lastProximityDailyRunAt ? new Date(form.lastProximityDailyRunAt).toLocaleString() : "sin registro"}
           {form.updatedAt && (
             <>
               {" "}

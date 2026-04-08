@@ -92,7 +92,7 @@ export function ExpirySolutionModal({ row, onClose, onSaved }: Props) {
 
       if (!sslOk || !domOk) {
         setErr(
-          "No se confirmó el guardado: ejecute la migración 006 (SQL Server) o reinicie el backend (SQLite) y vuelva a intentar."
+          "No se pudieron guardar los cambios. Si se repite, quien administra la aplicación debe revisar la base de datos o reiniciar el servicio."
         );
         setSslNotes(sslOk ? sslInDb : nextSsl);
         setDomainNotes(domOk ? domInDb : nextDom);
@@ -131,8 +131,8 @@ export function ExpirySolutionModal({ row, onClose, onSaved }: Props) {
         ))}
       </div>
       <p className="muted small">
-        Tras renovar, ejecute un chequeo en el sitio: la alerta desaparece cuando las fechas queden fuera de la ventana
-        de aviso.
+        Tras renovar, vuelva a revisar el sitio desde el inventario: la alerta se quita cuando las fechas queden fuera de
+        la ventana de aviso.
       </p>
 
       {showSslSection && (
@@ -155,7 +155,7 @@ export function ExpirySolutionModal({ row, onClose, onSaved }: Props) {
           {hasSslLine ? (
             <div className="resolution-readonly">
               <p className="muted small" style={{ marginTop: 0 }}>
-                Datos del chequeo (solo lectura)
+                Datos de la última revisión (solo lectura)
               </p>
               <dl className="dl compact">
                 <dt>Estado</dt>
@@ -202,7 +202,7 @@ export function ExpirySolutionModal({ row, onClose, onSaved }: Props) {
           </h3>
           <div className="resolution-readonly">
             <p className="muted small" style={{ marginTop: 0 }}>
-              Datos del chequeo (solo lectura)
+              Datos de la última revisión (solo lectura)
             </p>
             <dl className="dl compact">
               <dt>Registrador</dt>

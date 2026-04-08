@@ -4,6 +4,34 @@ import { computeDomainExpiryFinal } from "./site-domain-expiry.js";
 import { computeSslExpiryFinal } from "./site-ssl-expiry.js";
 import type { SiteRepository } from "../ports/site-repository.js";
 
+function registrableSiteDomain(siteDomain: string): string {
+  let d = siteDomain.trim().toLowerCase().replace(/\.$/, "");
+  if (d.startsWith("www.")) d = d.slice(4);
+  return d;
+}
+
+function httpsHostUnderInventoryDomain(hostname: string, siteDomain: string): boolean {
+  const dom = registrableSiteDomain(siteDomain);
+  const h = hostname.trim().toLowerCase().replace(/\.$/, "");
+  if (!dom) return false;
+  return h === dom || h.endsWith(`.${dom}`);
+}
+
+/** Misma «ubicación» HTTPS (host, ruta y query) salvo barra final opcional. */
+function sameHttpsLocation(a: string, b: string): boolean {
+  try {
+    const ua = new URL(a);
+    const ub = new URL(b);
+    if (ua.protocol !== ub.protocol) return false;
+    if (ua.hostname.toLowerCase() !== ub.hostname.toLowerCase()) return false;
+    const pa = ua.pathname.replace(/\/+$/, "") || "/";
+    const pb = ub.pathname.replace(/\/+$/, "") || "/";
+    return pa === pb && ua.search === ub.search;
+  } catch {
+    return a.trim() === b.trim();
+  }
+}
+
 export function monitoringResultToOperationalPatch(
   site: Site,
   result: MonitoringCheckResult
@@ -29,6 +57,20 @@ export function monitoringResultToOperationalPatch(
     !site.registrarProvider?.trim() && result.domainRegistrarDetected?.trim()
       ? result.domainRegistrarDetected.trim()
       : undefined;
+
+  let url: string | undefined;
+  if (result.httpsStatus === "ok" && result.httpsEffectiveUrl?.trim()) {
+    try {
+      const eff = new URL(result.httpsEffectiveUrl);
+      if (httpsHostUnderInventoryDomain(eff.hostname, site.domain)) {
+        if (!sameHttpsLocation(site.url, result.httpsEffectiveUrl)) {
+          url = result.httpsEffectiveUrl;
+        }
+      }
+    } catch {
+      /* ignore */
+    }
+  }
 
   return {
     domainExpiryAuto: result.domainExpiryAuto,
@@ -58,5 +100,6 @@ export function monitoringResultToOperationalPatch(
     lastCheckedAt: new Date(),
     checkStatus: result.checkStatus as Site["checkStatus"],
     healthStatus: result.healthStatus as Site["healthStatus"],
+    ...(url !== undefined ? { url } : {}),
   };
 }

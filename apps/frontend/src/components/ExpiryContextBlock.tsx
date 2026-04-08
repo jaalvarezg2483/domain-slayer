@@ -23,7 +23,7 @@ export function ExpiryContextBlock({ site }: { site: SiteRow }) {
             <span>{reg}</span>
           </>
         ) : (
-          "— (sin dato; suele rellenarse tras el chequeo de dominio)"
+          "Sin dato todavía (suele aparecer tras revisar el dominio)"
         )}
       </div>
       <div className="muted small expiry-context-line">

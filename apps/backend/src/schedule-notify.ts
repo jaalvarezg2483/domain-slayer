@@ -47,18 +47,17 @@ function smtpTransport() {
   });
 }
 
-/** Mensaje de error más accionable en el panel (prueba de notificación). */
-function formatSmtpOrNetworkError(channel: string, e: unknown): string {
+/** Texto de error para la prueba de notificación (usuario ve el detalle técnico y una pista breve). */
+function formatSmtpOrNetworkError(e: unknown): string {
   const raw = e instanceof Error ? e.message : String(e);
   const lower = raw.toLowerCase();
-  let hint = "";
   if (lower.includes("timeout") || lower.includes("timed out") || raw.includes("ETIMEDOUT")) {
-    hint =
-      " Compruebe salida TCP al puerto SMTP (587 o 465), variables SMTP_* en el hosting y que el proveedor no bloquee SMTP; si el DNS devuelve IPv6 inaccesible, pruebe SMTP_FORCE_IPV4=true.";
-  } else if (lower.includes("econnrefused") || lower.includes("enotfound") || lower.includes("getaddrinfo")) {
-    hint = " Compruebe SMTP_HOST, DNS y que el firewall permita la conexión saliente.";
+    return `${raw}. Suele indicar que el servidor no alcanza el servicio de correo (red o restricciones). Quien administra el sistema debe revisarlo.`;
   }
-  return `${channel}: ${raw}.${hint}`;
+  if (lower.includes("econnrefused") || lower.includes("enotfound") || lower.includes("getaddrinfo")) {
+    return `${raw}. Revise el nombre del servidor de correo y la conexión de red del servidor.`;
+  }
+  return raw;
 }
 
 function teamsWebhookTimeoutMs(): number {
@@ -88,10 +87,10 @@ async function fetchTeamsWebhook(webhookUrl: string, body: unknown): Promise<Res
     const msg = err?.message ?? String(e);
     if (aborted) {
       throw new Error(
-        `tiempo de espera (${ms}ms) al llamar al webhook. Compruebe salida HTTPS desde el servidor hacia Microsoft y que la URL del conector sea la actual.`,
+        `No hubo respuesta de Teams a tiempo (${Math.round(ms / 1000)} s). Compruebe el enlace del conector y la red del servidor.`,
       );
     }
-    throw new Error(`red: ${msg}`);
+    throw new Error(`No se pudo contactar Teams: ${msg}`);
   } finally {
     clearTimeout(t);
   }
@@ -608,8 +607,7 @@ export async function sendTestNotifications(
       errors.push("Para probar correo, indique al menos un destinatario.");
     } else if (!transport) {
       errors.push(
-        "SMTP no configurado (falta SMTP_HOST en el proceso del servidor). En producción defina las mismas variables que en .env local " +
-          "(SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS, SMTP_FROM) en el panel de su proveedor (p. ej. Railway → Variables) y vuelva a desplegar.",
+        "No está configurado el envío de correo en el servidor. Pida a quien administra la aplicación que active el correo saliente.",
       );
     } else {
       try {
@@ -638,7 +636,7 @@ export async function sendTestNotifications(
         });
         emailSent = true;
       } catch (e) {
-        errors.push(formatSmtpOrNetworkError("Correo (SMTP)", e));
+        errors.push(`Correo: ${formatSmtpOrNetworkError(e)}`);
       }
     }
   }

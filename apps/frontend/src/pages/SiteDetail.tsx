@@ -196,9 +196,7 @@ export function SiteDetail() {
 
       if (!sslOk || !domOk) {
         setResolutionErr(
-          "Las notas no se guardaron: faltan columnas en la base de datos o el backend no las creó al arrancar. " +
-            "SQL Server: ejecute database/migrations/006_site_resolution_notes_and_doc_links.sql. " +
-            "SQLite con DB_SYNC=false: reinicie el backend para aplicar el esquema. Luego reinicie el API y vuelva a guardar."
+          "No se pudieron guardar las notas. Si el problema continúa, quien administra la aplicación debe revisar la base de datos o reiniciar el servicio para aplicar las actualizaciones pendientes."
         );
         return;
       }
@@ -248,7 +246,7 @@ export function SiteDetail() {
       {checking && (
         <div className="loading-banner" role="status">
           <Spinner size="md" />
-          <span>Revisando sitio (SSL, DNS, HTTP…) — puede tardar varios segundos.</span>
+          <span>Revisando este sitio; puede tardar unos segundos.</span>
         </div>
       )}
       {checkErr && <div className="card error">{checkErr}</div>}
@@ -262,7 +260,7 @@ export function SiteDetail() {
         </div>
         {isAdmin ? (
           <div className="row gap">
-            <Link className="btn" to={`/sites/${id}/edit`} title="Incluye fecha de expiración del dominio si WHOIS no la trae">
+            <Link className="btn" to={`/sites/${id}/edit`} title="Aquí puede indicar la fecha del dominio si no aparece sola">
               Editar sitio
             </Link>
             <button
@@ -275,10 +273,10 @@ export function SiteDetail() {
               {checking ? (
                 <>
                   <Spinner size="sm" />
-                  Revisando…
+                  Un momento…
                 </>
               ) : (
-                "Ejecutar chequeo"
+                "Revisar ahora"
               )}
             </button>
           </div>
@@ -325,19 +323,19 @@ export function SiteDetail() {
         <h3 className="resolution-section-title">Certificado SSL</h3>
         {sslManualMismatchLabels ? (
           <div className="callout callout--warn" role="status">
-            <strong className="callout__title">La fecha que usa el sistema no coincide con el último chequeo TLS</strong>
+            <strong className="callout__title">La fecha del certificado no coincide con la última revisión automática</strong>
             <p className="callout__body muted small">
-              Origen: <strong>manual</strong>. El panel muestra <strong>{sslManualMismatchLabels.final}</strong> como fin de
-              validez, pero el chequeo obtuvo <strong>{sslManualMismatchLabels.tls}</strong> (alineado con lo que suele ver el
-              navegador). Para confiar en el certificado real, abra «Editar sitio» y elimine o corrija la fecha SSL manual, o
-              deje que prevalezca la detección automática tras un chequeo correcto.
+              Tiene una <strong>fecha manual</strong>: el sistema usa <strong>{sslManualMismatchLabels.final}</strong> como fin
+              de validez, pero la última revisión obtuvo <strong>{sslManualMismatchLabels.tls}</strong> (más parecido a lo que
+              muestra el navegador). En «Editar sitio» puede quitar o corregir la fecha manual, o dejar que mande la detección
+              automática después de una revisión correcta.
             </p>
           </div>
         ) : null}
         <div className="resolution-split">
           <div className="resolution-readonly">
             <p className="muted small" style={{ marginTop: 0 }}>
-              Datos del chequeo
+              Datos de la última revisión
             </p>
             <dl className="dl compact">
               <dt>Estado</dt>
@@ -348,7 +346,7 @@ export function SiteDetail() {
               <dd>{site.sslSubject ?? "—"}</dd>
               <dt>Emisor</dt>
               <dd>{site.sslIssuer ?? "—"}</dd>
-              <dt>Válido hasta (chequeo TLS)</dt>
+              <dt>Válido hasta (última revisión)</dt>
               <dd>
                 {site.sslValidTo ? new Date(site.sslValidTo).toLocaleString("es-ES", esDateTime) : "—"}
               </dd>
@@ -363,7 +361,7 @@ export function SiteDetail() {
                 {site.sslExpirySource === "manual"
                   ? "Manual (editada en «Editar sitio»)"
                   : site.sslExpirySource === "auto"
-                    ? "Automática (chequeo TLS)"
+                    ? "Automática (última revisión)"
                     : site.sslExpirySource === "unavailable"
                       ? "Sin detección automática"
                       : "—"}
@@ -390,7 +388,7 @@ export function SiteDetail() {
         <div className="resolution-split">
           <div className="resolution-readonly">
             <p className="muted small" style={{ marginTop: 0 }}>
-              Datos del chequeo
+              Datos de la última revisión
             </p>
             <dl className="dl compact">
               <dt>Registrador</dt>
@@ -433,10 +431,10 @@ export function SiteDetail() {
         <div className="resolution-split">
           <div className="resolution-readonly">
             <p className="muted small" style={{ marginTop: 0 }}>
-              Datos del chequeo
+              Datos de la última revisión
             </p>
             <dl className="dl compact">
-              <dt>Estado del chequeo</dt>
+              <dt>Estado de la última revisión</dt>
               <dd>{labelCheckStatus(String(site.checkStatus ?? "unknown"))}</dd>
               <dt>HTTP</dt>
               <dd>{labelHttpStatus(String(site.httpStatus ?? "unknown"))}</dd>
@@ -521,7 +519,7 @@ export function SiteDetail() {
       <div className="card">
         <h2>Informe operativo</h2>
         <p className="muted small">
-          Último chequeo:{" "}
+          Última revisión:{" "}
           {site.lastCheckedAt ? new Date(site.lastCheckedAt).toLocaleString("es-ES", esDateTime) : "—"}
         </p>
         <ul className="report-list">

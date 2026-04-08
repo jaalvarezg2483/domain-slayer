@@ -5,7 +5,7 @@ export function SiteActiveBadge({ isActive }: { isActive: boolean }) {
       className={`badge ${isActive ? "badge-ok" : "badge-muted"}`}
       title={
         isActive
-          ? "Sitio activo: incluido en chequeos globales y en el contador del panel"
+          ? "Sitio activo: entra al revisar todos y cuenta en el panel"
           : "Sitio inactivo: excluido de «Chequear todos» y del contador de sitios activos"
       }
     >

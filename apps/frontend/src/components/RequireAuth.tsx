@@ -53,11 +53,10 @@ export function RequireAuth({ children }: { children: React.ReactNode }) {
             No se pudo verificar la sesión con el servidor (sin respuesta o error de red).
           </p>
           <p className="muted small" style={{ margin: "0 0 0.35rem" }}>
-            Compruebe que el API está en ejecución y que <code className="small">VITE_API_BASE_URL</code> apunta al
-            backend correcto si no usa el mismo host.
+            Compruebe que el servicio de la aplicación está en marcha y que esta página usa la dirección correcta.
           </p>
           <p className="muted small" style={{ margin: "0 0 0.5rem", wordBreak: "break-all" }}>
-            URL base del API: <code className="small">{apiBase()}</code>
+            Dirección del servicio: <code className="small">{apiBase()}</code>
           </p>
           {errorDetail ? (
             <p

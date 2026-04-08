@@ -201,6 +201,30 @@ export function createApiRouter(broker: ServiceBroker, options?: ApiRouterOption
     }
   });
 
+  r.post("/sites/probe-https", requireAdminApi, async (req, res, next) => {
+    try {
+      const url = String((req.body as { url?: unknown })?.url ?? "").trim();
+      if (!url) {
+        res.status(400).json({ error: "Indique la URL a comprobar." });
+        return;
+      }
+      try {
+        void new URL(url);
+      } catch {
+        res.status(400).json({ error: "URL no válida." });
+        return;
+      }
+      const out = (await broker.call("monitoring.probe.https", { url })) as {
+        httpsEffectiveUrl: string;
+        httpsOk: boolean;
+        httpOk: boolean;
+      };
+      res.json(out);
+    } catch (e) {
+      next(e);
+    }
+  });
+
   r.patch("/sites/:id", requireAdminApi, async (req, res, next) => {
     try {
       const out = await broker.call("inventory.sites.update", { id: req.params.id, payload: req.body });

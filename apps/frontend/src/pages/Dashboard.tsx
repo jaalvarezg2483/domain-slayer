@@ -100,9 +100,9 @@ export function Dashboard() {
         ) : (
           <>
             <p className="muted small" style={{ marginBottom: "0.75rem" }}>
-              Las filas salen de las fechas del último chequeo. Tras renovar, ejecute un chequeo en el sitio: si dominio y
-              SSL quedan fuera de la ventana de aviso, la alerta desaparece sola. Use el botón «Notas» para ver las de
-              resolución guardadas en el servidor.
+              Las fechas vienen de la última revisión de cada sitio. Cuando renueve, vuelva a revisar el sitio: si el dominio
+              y el certificado quedan fuera de la ventana de aviso, la alerta se quita sola. En «Notas» ve las pautas de
+              resolución guardadas.
             </p>
             <div className="table-scroll table-scroll--dashboard-fit">
             <table className="table expiry-alert-table table--dashboard-expiry">
@@ -179,12 +179,12 @@ export function Dashboard() {
           <thead>
             <tr>
               <th>Sitio</th>
-              <th title="Activo: incluido en chequeos globales">Estado</th>
+              <th title="Los inactivos no se incluyen al revisar todos">Estado</th>
               <th>Salud</th>
               <th>SSL</th>
-              <th title="Vencimiento del certificado TLS (HTTPS)">SSL vence</th>
+              <th title="Vencimiento del certificado (HTTPS)">SSL vence</th>
               <th title="Vencimiento del registro de dominio">Dominio exp.</th>
-              <th>Último chequeo</th>
+              <th>Última revisión</th>
             </tr>
           </thead>
           <tbody>

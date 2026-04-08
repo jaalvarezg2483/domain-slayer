@@ -3,11 +3,11 @@ import { useEffect, useMemo, useState } from "react";
 const MESSAGE_INTERVAL_MS = 4500;
 
 const MESSAGES = [
-  "Revisamos todos los sitios activos: SSL, DNS y conectividad. No se omite ninguno.",
-  "Puede tardar varios minutos si hay muchos dominios; es normal.",
-  "Consultamos certificados, caducidades y respuesta HTTP por cada URL.",
-  "Un momento mientras se completa la cola de revisión.",
-  "Gracias por esperar; al terminar verá los datos actualizados.",
+  "Estamos revisando todos los sitios activos: certificados, dominios y que la web responda.",
+  "Si hay muchos sitios, puede tardar varios minutos. Es normal.",
+  "Cada dirección se comprueba por turnos; no cierre esta ventana.",
+  "En cuanto termine, la tabla mostrará las fechas y estados nuevos.",
+  "Gracias por esperar.",
 ];
 
 type Props = {
@@ -21,12 +21,12 @@ export function CheckAllWaitOverlay({ open, siteCount }: Props) {
 
   const subtitle = useMemo(() => {
     if (siteCount <= 0) {
-      return "Se están procesando los sitios del inventario.";
+      return "Procesando los sitios del inventario.";
     }
     if (siteCount === 1) {
-      return "Hay 1 sitio activo en el inventario.";
+      return "Hay un sitio activo en el inventario.";
     }
-    return `Hay ${siteCount} sitios en el inventario; el chequeo completo puede tardar bastante.`;
+    return `Hay ${siteCount} sitios activos; revisarlos todos puede llevar un buen rato.`;
   }, [siteCount]);
 
   useEffect(() => {
@@ -53,7 +53,7 @@ export function CheckAllWaitOverlay({ open, siteCount }: Props) {
       <div className="checkall-overlay__card">
         <div className="checkall-overlay__inner">
           <h2 id="checkall-overlay-title" className="checkall-overlay__title">
-            Chequeo en curso
+            Revisión en curso
           </h2>
           <p id="checkall-overlay-desc" className="checkall-overlay__subtitle">
             {subtitle}

@@ -271,10 +271,10 @@ export function Reports() {
       ) : null}
 
       <div className="reports-grid">
-        <ChartCard title="Salud general" subtitle="Agregado del campo salud tras el último chequeo.">
+        <ChartCard title="Salud general" subtitle="Resumen del estado de salud tras la última revisión.">
           <DonutChart data={health} emptyHint="No hay sitios para mostrar." />
         </ChartCard>
-        <ChartCard title="Certificado SSL" subtitle="Estado TLS según inventario / chequeo.">
+        <ChartCard title="Certificado SSL" subtitle="Estado del certificado según el inventario y la última revisión.">
           <DonutChart data={ssl} emptyHint="No hay sitios para mostrar." />
         </ChartCard>
         <ChartCard title="Ambiente" subtitle="Producción, staging o desarrollo.">
@@ -283,8 +283,8 @@ export function Reports() {
         <ChartCard title="Inventario activo" subtitle="Los inactivos no entran en «Chequear todos».">
           <DonutChart data={active} emptyHint="No hay sitios." />
         </ChartCard>
-        <ChartCard title="Último chequeo" subtitle="Resultado global del monitoreo por sitio.">
-          <VerticalBarChart data={check} emptyHint="Sin datos de chequeo." />
+        <ChartCard title="Última revisión" subtitle="Resultado global del monitoreo por sitio.">
+          <VerticalBarChart data={check} emptyHint="Sin datos de revisión todavía." />
         </ChartCard>
         <ChartCard title="HTTPS" subtitle="Respuesta HTTP(s) del sitio.">
           <VerticalBarChart data={https} emptyHint="Sin datos HTTPS." />

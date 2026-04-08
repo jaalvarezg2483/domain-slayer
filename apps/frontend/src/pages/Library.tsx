@@ -264,7 +264,7 @@ export function Library() {
               }}
               aria-label="Sitio"
             >
-              <option value="">Sin sitio — documento global / compartido</option>
+              <option value="">Sin sitio (documento global o compartido)</option>
               {sites.map((s) => (
                 <option key={s.id} value={s.id}>
                   {s.siteName} ({s.domain})

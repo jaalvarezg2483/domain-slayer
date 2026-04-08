@@ -41,7 +41,7 @@ function scheduleToDto(e: MonitoringScheduleEntity) {
         : 7,
     lastProximityDailyRunAt: e.lastProximityDailyRunAt ? e.lastProximityDailyRunAt.toISOString() : null,
     updatedAt: e.updatedAt.toISOString(),
-    /** Solo lectura: indica si el proceso del backend tiene SMTP_HOST (p. ej. en Railway hay que definir las variables). */
+    /** Solo lectura: el servidor tiene configurado el host de correo saliente. */
     smtpConfigured: Boolean(process.env.SMTP_HOST?.trim()),
   };
 }

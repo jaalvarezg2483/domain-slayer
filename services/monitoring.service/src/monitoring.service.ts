@@ -83,6 +83,19 @@ export function createMonitoringService(
   return {
     name: "monitoring",
     actions: {
+      /** Misma lógica que el chequeo del sitio: GET HTTPS siguiendo redirecciones → URL canónica para inventario. */
+      "probe.https": {
+        params: { url: "string" },
+        async handler(ctx: { params: { url: string } }) {
+          const raw = String(ctx.params.url ?? "").trim();
+          const result = await http.probe(raw, opts.httpTimeoutMs);
+          return {
+            httpsEffectiveUrl: result.httpsEffectiveUrl,
+            httpsOk: result.httpsOk,
+            httpOk: result.httpOk,
+          };
+        },
+      },
       "check.runOne": {
         params: { siteId: "string" },
         async handler(ctx: { params: { siteId: string } }) {

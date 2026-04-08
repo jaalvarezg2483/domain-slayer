@@ -60,6 +60,7 @@ export interface SiteRepository {
         | "checkStatus"
         | "healthStatus"
         | "registrarProvider"
+        | "url"
       >
     >
   ): Promise<void>;

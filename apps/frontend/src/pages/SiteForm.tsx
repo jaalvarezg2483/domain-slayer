@@ -26,6 +26,13 @@ const empty = {
   sslExpiryManualStr: "",
 };
 
+/** Dominio registrable sin `www.` inicial (misma idea que el backend). */
+function registrableDomainField(domain: string): string {
+  let d = domain.trim().toLowerCase().replace(/\.$/, "");
+  if (d.startsWith("www.")) d = d.slice(4);
+  return d;
+}
+
 function toSitePayload(form: typeof empty) {
   return {
     siteName: form.siteName,
@@ -61,7 +68,9 @@ export function SiteForm() {
   const [err, setErr] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [emailSuggestions, setEmailSuggestions] = useState<string[]>(() => getStoredContactEmails());
+  const [probeHttpsBusy, setProbeHttpsBusy] = useState(false);
   const isNew = !id || id === "new";
+  const regDom = registrableDomainField(form.domain);
 
   useEffect(() => {
     if (!id || id === "new") return;
@@ -140,14 +149,56 @@ export function SiteForm() {
           Dominio
           <input
             className="input"
-            placeholder="ej. grupopurdy.com — sin www (WHOIS/RDAP usan el dominio de registro)"
+            placeholder="ej. grupopurdy.com (sin www; es el dominio registrado)"
             value={form.domain}
             onChange={(e) => setForm({ ...form, domain: e.target.value })}
           />
         </label>
-        <label>
+        <label className="span-2">
           URL
           <input className="input" value={form.url} onChange={(e) => setForm({ ...form, url: e.target.value })} />
+          <span className="muted small" style={{ display: "block", marginTop: "0.35rem" }}>
+            Tras cada revisión exitosa por HTTPS, la URL del inventario se actualiza sola si el sitio redirige a otra
+            ruta bajo el mismo dominio (misma lógica que el chequeo). Use aquí la entrada que prefiera; los botones de
+            abajo ayudan a alinear con <code>www</code> o con la URL final tras redirecciones.
+          </span>
+          <div className="row gap wrap" style={{ marginTop: "0.5rem" }}>
+            <button
+              type="button"
+              className="btn ghost"
+              disabled={!regDom}
+              onClick={() => setForm((f) => ({ ...f, url: `https://www.${regDom}/` }))}
+            >
+              Usar https://www.{regDom || "…"}/
+            </button>
+            <button
+              type="button"
+              className="btn ghost"
+              disabled={probeHttpsBusy || !form.url.trim()}
+              onClick={() => {
+                void (async () => {
+                  setErr(null);
+                  setProbeHttpsBusy(true);
+                  try {
+                    const u = form.url.trim();
+                    const out = await api.sites.probeHttps(u);
+                    setForm((f) => ({ ...f, url: out.httpsEffectiveUrl }));
+                    if (!out.httpsOk) {
+                      setErr(
+                        "La URL HTTPS final se aplicó, pero la comprobación HTTPS no respondió bien; revise la URL o el sitio."
+                      );
+                    }
+                  } catch (e) {
+                    setErr((e as Error).message);
+                  } finally {
+                    setProbeHttpsBusy(false);
+                  }
+                })();
+              }}
+            >
+              {probeHttpsBusy ? "Detectando…" : "Detectar URL HTTPS final (redirecciones)"}
+            </button>
+          </div>
         </label>
         <label>
           Ambiente
@@ -170,7 +221,7 @@ export function SiteForm() {
           <span className="form-checkbox-row__text">
             <span className="form-checkbox-row__title">Sitio activo</span>
             <span className="muted small">
-              Si lo desactiva, el sitio deja de incluirse en «Chequear todos» y no cuenta en «Sitios activos» del panel.
+              Si lo desactiva, el sitio no entra en «Revisar todos» y no suma en «Sitios activos» del panel.
             </span>
           </span>
         </label>
@@ -223,8 +274,8 @@ export function SiteForm() {
         <div className="span-2">
           <h2 style={{ fontSize: "1.05rem", margin: "0.5rem 0 0.25rem" }}>Expiración del dominio</h2>
           <p className="muted small" style={{ margin: "0 0 0.5rem" }}>
-            Si RDAP/WHOIS no devuelven la fecha (p. ej. firewall al puerto 43), indíquela aquí. Esa fecha prevalece
-            sobre la detectada automáticamente. Déjelo vacío para confiar solo en el chequeo automático.
+            Si no se obtiene la fecha del dominio sola, indíquela aquí. Esa fecha tiene prioridad sobre la detectada
+            automáticamente. Déjelo vacío para usar solo la detección automática.
           </p>
         </div>
         <label>
@@ -239,8 +290,8 @@ export function SiteForm() {
         <div className="span-2">
           <h2 style={{ fontSize: "1.05rem", margin: "0.5rem 0 0.25rem" }}>Expiración del certificado SSL</h2>
           <p className="muted small" style={{ margin: "0 0 0.5rem" }}>
-            Si el chequeo TLS no obtiene la fecha del certificado, indíquela aquí. Esa fecha prevalece según esta
-            sección (como el dominio manual). Déjelo vacío para usar solo el resultado automático del chequeo.
+            Si la revisión automática no obtiene la fecha del certificado, indíquela aquí. Tiene prioridad como en el
+            dominio manual. Déjelo vacío para usar solo el resultado automático.
           </p>
         </div>
         <label>
@@ -255,7 +306,7 @@ export function SiteForm() {
       </div>
       {isNew && (
         <p className="muted small">
-          Al crear un sitio nuevo, el sistema ejecuta automáticamente el primer chequeo (SSL, DNS, dominio…); puede tardar unos segundos.
+          Al crear un sitio nuevo, se hace una primera revisión automática; puede tardar unos segundos.
         </p>
       )}
       <div className="row gap">
@@ -263,7 +314,7 @@ export function SiteForm() {
           {saving ? (
             <>
               <Spinner size="sm" />
-              {isNew ? "Guardando y revisando…" : "Guardando…"}
+              {isNew ? "Guardando y comprobando el sitio…" : "Guardando…"}
             </>
           ) : (
             "Guardar"

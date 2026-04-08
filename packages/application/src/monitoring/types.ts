@@ -20,6 +20,8 @@ export interface MonitoringCheckResult {
 
   httpStatus: "ok" | "error" | "timeout" | "unknown";
   httpsStatus: "ok" | "error" | "timeout" | "unknown";
+  /** Tras `GET` HTTPS con `redirect: follow` (misma lógica que el probe de conectividad). */
+  httpsEffectiveUrl: string;
 
   sslSubject: string | null;
   sslIssuer: string | null;

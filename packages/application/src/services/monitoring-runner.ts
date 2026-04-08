@@ -54,8 +54,8 @@ export class MonitoringRunner {
     const thresholds = this.deps.sslAlertDays.length ? this.deps.sslAlertDays : [...DEFAULT_ALERT_DAY_THRESHOLDS];
 
     const httpResult = await this.deps.http.probe(site.url, 8000);
-    /** Misma política para todos los sitios: cert = el de la página pública (URL HTTPS final del probe + reglas www/apex). */
-    const sslResult = await inspectTlsMatchingPublicPage(
+    /** Certificado = solo el host de la URL HTTPS **final** del probe (redirecciones incluidas), sin sustituir por otro subdominio. */
+    const sslResult = await inspectTlsForEffectiveHttpsUrl(
       this.deps.ssl,
       site.domain,
       urlHost,
@@ -147,6 +147,7 @@ export class MonitoringRunner {
       soaRecord: dnsResult.soa,
       httpStatus: httpResult.httpStatus,
       httpsStatus: httpResult.httpsStatus,
+      httpsEffectiveUrl: httpResult.httpsEffectiveUrl,
       sslSubject: sslResult.subject,
       sslIssuer: sslResult.issuer,
       sslValidFrom: sslResult.validFrom,
@@ -191,37 +192,24 @@ function tlsHostnameAfterRedirect(siteDomain: string, urlHostname: string, https
 }
 
 /**
- * Certificado TLS alineado con lo que muestra el navegador al abrir la página:
- * 1) Host = URL HTTPS **después de redirecciones** (ya acotada al dominio del sitio en `tlsHostnameAfterRedirect`).
- * 2) Si ese host es el **apex**, se inspecciona **primero `www`** (donde suele estar el cert “de la web”) y solo si
- *    no es válido se usa el apex.
- * 3) Cualquier otro subdominio (`shop.`, `admin.`, etc.) se inspecciona tal cual (es el host de la página).
+ * TLS al mismo host que la URL HTTPS final del probe (tras redirecciones). Si el sitio redirige apex → `www`, esa es la ruta.
  */
-async function inspectTlsMatchingPublicPage(
+async function inspectTlsForEffectiveHttpsUrl(
   ssl: SslInspector,
   siteDomain: string,
   urlHostname: string,
   httpsEffectiveUrl: string
 ): Promise<SslInspectionResult> {
   const tlsHost = tlsHostnameAfterRedirect(siteDomain, urlHostname, httpsEffectiveUrl);
-  const dom = registrableSiteDomain(siteDomain);
-  const th = tlsHost.trim().toLowerCase().replace(/\.$/, "");
-  if (!dom) {
-    return ssl.inspectTls(th, 443, th);
-  }
-  const wwwHost = `www.${dom}`;
-  if (th === wwwHost) {
-    return ssl.inspectTls(wwwHost, 443, wwwHost);
-  }
-  if (th === dom) {
-    let wwwFirst = await ssl.inspectTls(wwwHost, 443, wwwHost);
-    if (wwwFirst.status !== "valid" || !wwwFirst.validTo) {
-      wwwFirst = await ssl.inspectTls(wwwHost, 443, wwwHost, { dnsFamily: 4 });
+  const host = tlsHost.trim().toLowerCase().replace(/\.$/, "");
+
+  async function inspectWithV4Fallback(h: string): Promise<SslInspectionResult> {
+    let r = await ssl.inspectTls(h, 443, h);
+    if (r.status === "tls_error") {
+      r = await ssl.inspectTls(h, 443, h, { dnsFamily: 4 });
     }
-    if (wwwFirst.status === "valid" && wwwFirst.validTo) {
-      return wwwFirst;
-    }
-    return ssl.inspectTls(dom, 443, dom);
+    return r;
   }
-  return ssl.inspectTls(th, 443, th);
+
+  return inspectWithV4Fallback(host);
 }
