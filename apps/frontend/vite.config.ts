@@ -9,9 +9,26 @@ export default defineConfig(({ mode }) => {
   const vitePrefixed = { ...loadEnv(mode, repoRoot, "VITE_"), ...loadEnv(mode, __dirname, "VITE_") };
   const siteUrl = vitePrefixed.VITE_SITE_URL ?? "";
   const apiProxyTarget = env.VITE_PROXY_TARGET || "http://localhost:3000";
+  const profeDevTarget = env.VITE_PROFE_DEV_SERVER?.trim() || "http://127.0.0.1:5175";
   return {
     plugins: [
       react(),
+      {
+        name: "profe-slash-redirect",
+        configureServer(server) {
+          server.middlewares.use((req, res, next) => {
+            const u = req.url ?? "";
+            if (u === "/profe" || (u.startsWith("/profe?") && !u.startsWith("/profe/"))) {
+              const q = u.includes("?") ? u.slice(u.indexOf("?")) : "";
+              res.statusCode = 302;
+              res.setHeader("Location", `/profe/${q}`);
+              res.end();
+              return;
+            }
+            next();
+          });
+        },
+      },
       /* Sustituye %VITE_SITE_URL% en index.html sin exigir .env (evita warning y rutas rotas en dev). */
       {
         name: "html-vite-site-url",
@@ -27,12 +44,22 @@ export default defineConfig(({ mode }) => {
       },
     },
     server: {
+      /** Misma familia de direcciones que `VITE_PROFE_DEV_SERVER` (127.0.0.1) para que el proxy no falle en Windows. */
+      host: "127.0.0.1",
       port: Number(env.VITE_DEV_PORT || 5173),
       strictPort: false,
       proxy: {
         "/api": {
           target: apiProxyTarget,
           changeOrigin: true,
+        },
+        "/profe": {
+          target: profeDevTarget,
+          changeOrigin: true,
+          ws: true,
+          /** Evita cierres prematuros al cargar muchos chunks a través del proxy. */
+          timeout: 120_000,
+          proxyTimeout: 120_000,
         },
       },
     },
@@ -43,6 +70,11 @@ export default defineConfig(({ mode }) => {
         "/api": {
           target: apiProxyTarget,
           changeOrigin: true,
+        },
+        "/profe": {
+          target: profeDevTarget,
+          changeOrigin: true,
+          ws: true,
         },
       },
     },

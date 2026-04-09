@@ -9,6 +9,7 @@ export {
 export { SqlUnitOfWork } from "./persistence/sql-unit-of-work.js";
 export { MonitoringScheduleEntity } from "./persistence/entities/monitoring-schedule.entity.js";
 export { AppUserEntity } from "./persistence/entities/app-user.entity.js";
+export { ProfeSchoolEntity } from "./persistence/entities/profe-school.entity.js";
 export { SqlMonitoringScheduleRepository } from "./persistence/repositories/sql-monitoring-schedule-repository.js";
 export { SslInspectorNode } from "./monitoring/ssl-inspector.js";
 export { DnsInspectorNode } from "./monitoring/dns-inspector.js";

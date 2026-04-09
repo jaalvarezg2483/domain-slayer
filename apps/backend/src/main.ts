@@ -100,7 +100,7 @@ async function main() {
 
   const app = express();
   app.use(cors());
-  app.use(express.json({ limit: "2mb" }));
+  app.use(express.json({ limit: "15mb" }));
   const uploadDir = path.resolve(process.env.UPLOAD_DIR ?? path.join(process.cwd(), "data", "uploads", "documents"));
   registerMonitoringScheduleHttp(app, ds, () => scheduler.reschedule(), broker);
   app.use(
@@ -110,6 +110,23 @@ async function main() {
       dataSource: ds,
     })
   );
+
+  /* Segunda SPA (p. ej. app «profe»): build en apps/profe/dist, servida bajo /profe */
+  const profeDist = path.resolve(process.cwd(), "apps/profe/dist");
+  const profeIndex = path.join(profeDist, "index.html");
+  if (fs.existsSync(profeIndex)) {
+    app.use(
+      "/profe",
+      express.static(profeDist, {
+        fallthrough: true,
+      })
+    );
+    app.use((req, res, next) => {
+      if (req.method !== "GET" && req.method !== "HEAD") return next();
+      if (!req.path.startsWith("/profe")) return next();
+      res.sendFile(profeIndex, (err) => next(err));
+    });
+  }
 
   /* Producción (p. ej. Railway): mismo proceso sirve el build de Vite en apps/frontend/dist */
   const feDist = path.resolve(process.cwd(), "apps/frontend/dist");

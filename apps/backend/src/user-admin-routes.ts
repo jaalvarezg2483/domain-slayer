@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import type { DataSource } from "typeorm";
 import type { Router, Request, Response, NextFunction } from "express";
 import { AppUserEntity } from "@domain-slayer/infrastructure";
-import { hashPassword, resolvedDisplayName, type AuthedRequest } from "./auth-http.js";
+import { hashPassword, homeAppFromDb, resolvedDisplayName, type AuthedRequest } from "./auth-http.js";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/i;
 
@@ -42,6 +42,7 @@ export function registerUserAdminRoutes(r: Router, ds: DataSource): void {
           email: u.email,
           displayName: resolvedDisplayName(u),
           role: u.role === "viewer" ? "viewer" : "admin",
+          homeApp: homeAppFromDb(u.homeApp),
           createdAt: u.createdAt.toISOString(),
         })),
       });
@@ -59,6 +60,8 @@ export function registerUserAdminRoutes(r: Router, ds: DataSource): void {
       const displayNameIn = String(req.body?.displayName ?? "").trim();
       const roleRaw = String(req.body?.role ?? "viewer").toLowerCase();
       const role = roleRaw === "admin" ? "admin" : "viewer";
+      const homeAppRaw = String(req.body?.homeApp ?? "inventory").toLowerCase();
+      const homeApp = homeAppRaw === "profe" ? "profe" : "inventory";
       if (!email || !EMAIL_RE.test(email)) {
         res.status(400).json({ error: "Indique un correo electrónico válido." });
         return;
@@ -84,6 +87,7 @@ export function registerUserAdminRoutes(r: Router, ds: DataSource): void {
         passwordHash: hashPassword(password),
         displayName,
         role,
+        homeApp,
         createdAt: new Date(),
       });
       res.status(201).json({ ok: true, email });
@@ -103,11 +107,13 @@ export function registerUserAdminRoutes(r: Router, ds: DataSource): void {
       const hasPassword = password.length > 0;
       const bodyDn = req.body?.displayName;
       const bodyRole = req.body?.role;
+      const bodyHomeApp = req.body?.homeApp;
       const hasDisplayName = bodyDn !== undefined && bodyDn !== null;
       const hasRole = bodyRole !== undefined && bodyRole !== null;
+      const hasHomeApp = bodyHomeApp !== undefined && bodyHomeApp !== null;
 
-      if (!hasPassword && !hasDisplayName && !hasRole) {
-        res.status(400).json({ error: "Indique nueva contraseña, nombre o rol." });
+      if (!hasPassword && !hasDisplayName && !hasRole && !hasHomeApp) {
+        res.status(400).json({ error: "Indique nueva contraseña, nombre, rol o aplicación de entrada." });
         return;
       }
       if (hasPassword && password.length < 8) {
@@ -132,6 +138,10 @@ export function registerUserAdminRoutes(r: Router, ds: DataSource): void {
       if (hasRole) {
         const rr = String(bodyRole).toLowerCase();
         row.role = rr === "admin" ? "admin" : "viewer";
+      }
+      if (hasHomeApp) {
+        const h = String(bodyHomeApp).toLowerCase();
+        row.homeApp = h === "profe" ? "profe" : "inventory";
       }
       await repo.save(row);
       res.json({ ok: true });

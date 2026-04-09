@@ -8,13 +8,16 @@
   },
   "scripts": {
     "dev": "node node_modules/concurrently/dist/bin/concurrently.js -n backend,frontend -c blue,green \"npm run dev:backend\" \"npm run dev:frontend\"",
-    "build": "npm run build:all && npm run build --prefix apps/frontend",
+    "dev:with-profe": "node node_modules/concurrently/dist/bin/concurrently.js -n backend,inv,profe -c blue,green,magenta \"npm run dev:backend\" \"npm run dev:frontend\" \"npm run dev --prefix apps/profe\"",
+    "dev:whith-profe": "npm run dev:with-profe",
+    "build": "npm run build:all && npm run build --prefix apps/frontend && npm run build --prefix apps/profe",
     "build:packages": "npm run build --prefix packages/shared && npm run build --prefix packages/domain && npm run build --prefix packages/application && npm run build --prefix packages/infrastructure",
     "build:services": "npm run build --prefix services/inventory.service && npm run build --prefix services/document.service && npm run build --prefix services/alerting.service && npm run build --prefix services/monitoring.service",
     "build:all": "npm run build:packages && npm run build:services && npm run build --prefix apps/backend",
     "dev:backend": "npm run dev --prefix apps/backend",
     "start:backend": "node apps/backend/dist/main.js",
     "dev:frontend": "npm run dev --prefix apps/frontend",
+    "dev:profe": "npm run dev --prefix apps/profe",
     "lint": "npm run typecheck:packages && npx tsc -p apps/frontend/tsconfig.json --noEmit",
     "migrate": "npm run migrate --prefix packages/infrastructure",
     "typecheck": "tsc -b packages/shared packages/domain packages/application packages/infrastructure apps/backend",
@@ -35,6 +38,7 @@
   "dependencies": {
     "@domain-slayer/backend": "file:./apps/backend",
     "@domain-slayer/frontend": "file:./apps/frontend",
+    "@domain-slayer/profe": "file:./apps/profe",
     "better-sqlite3": "^11.7.0"
   }
 }

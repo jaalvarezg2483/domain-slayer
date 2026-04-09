@@ -6,6 +6,7 @@ import { CheckHistoryEntity } from "./entities/check-history.entity.js";
 import { AlertEntity } from "./entities/alert.entity.js";
 import { MonitoringScheduleEntity } from "./entities/monitoring-schedule.entity.js";
 import { AppUserEntity } from "./entities/app-user.entity.js";
+import { ProfeSchoolEntity } from "./entities/profe-school.entity.js";
 
 const entities = [
   SiteEntity,
@@ -15,6 +16,7 @@ const entities = [
   AlertEntity,
   MonitoringScheduleEntity,
   AppUserEntity,
+  ProfeSchoolEntity,
 ];
 
 export interface SqlServerDataSourceConfig {

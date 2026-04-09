@@ -4,10 +4,21 @@ import { ConfirmModal } from "../components/ConfirmModal";
 import { Spinner } from "../components/Spinner";
 import { readAuthPayload, setSessionDisplayName } from "../lib/auth-session";
 
-type Row = { id: string; email: string; displayName: string; role: string; createdAt: string };
+type Row = {
+  id: string;
+  email: string;
+  displayName: string;
+  role: string;
+  homeApp: "inventory" | "profe";
+  createdAt: string;
+};
 
 function roleLabel(r: string): string {
   return r === "viewer" ? "Visor" : "Administrador";
+}
+
+function homeAppLabel(h: string | undefined): string {
+  return h === "profe" ? "Profe" : "Inventario";
 }
 
 export function UsersSettings() {
@@ -20,6 +31,7 @@ export function UsersSettings() {
   const [newEmail, setNewEmail] = useState("");
   const [newPass, setNewPass] = useState("");
   const [newRole, setNewRole] = useState<"admin" | "viewer">("viewer");
+  const [newHomeApp, setNewHomeApp] = useState<"inventory" | "profe">("inventory");
   const [creating, setCreating] = useState(false);
 
   const [pwdUserId, setPwdUserId] = useState<string | null>(null);
@@ -29,6 +41,7 @@ export function UsersSettings() {
   const [editUser, setEditUser] = useState<Row | null>(null);
   const [editDisplayName, setEditDisplayName] = useState("");
   const [editRole, setEditRole] = useState<"admin" | "viewer">("viewer");
+  const [editHomeApp, setEditHomeApp] = useState<"inventory" | "profe">("inventory");
   const [editBusy, setEditBusy] = useState(false);
 
   const [userPendingDelete, setUserPendingDelete] = useState<{ id: string; email: string } | null>(null);
@@ -43,7 +56,12 @@ export function UsersSettings() {
     api.users
       .list()
       .then((r) => {
-        setItems(r.items ?? []);
+        setItems(
+          (r.items ?? []).map((u) => ({
+            ...u,
+            homeApp: u.homeApp === "profe" ? "profe" : "inventory",
+          }))
+        );
       })
       .catch((e: Error) => setErr(e.message))
       .finally(() => setLoading(false));
@@ -63,12 +81,14 @@ export function UsersSettings() {
         password: newPass,
         displayName: newDisplayName.trim() || undefined,
         role: newRole,
+        homeApp: newHomeApp,
       });
       setOk(`Usuario ${newEmail.trim()} creado.`);
       setNewEmail("");
       setNewPass("");
       setNewDisplayName("");
       setNewRole("viewer");
+      setNewHomeApp("inventory");
       void load();
     } catch (e) {
       setErr((e as Error).message);
@@ -117,6 +137,7 @@ export function UsersSettings() {
     setEditUser(u);
     setEditDisplayName(u.displayName?.trim() || u.email.split("@")[0] || "");
     setEditRole(u.role === "viewer" ? "viewer" : "admin");
+    setEditHomeApp(u.homeApp === "profe" ? "profe" : "inventory");
   };
 
   const saveEdit = async () => {
@@ -128,6 +149,7 @@ export function UsersSettings() {
       await api.users.update(editUser.id, {
         displayName: editDisplayName.trim(),
         role: editRole,
+        homeApp: editHomeApp,
       });
       if (editUser.id === selfId) {
         setSessionDisplayName(editDisplayName.trim() || null);
@@ -186,6 +208,17 @@ export function UsersSettings() {
           </select>
         </label>
         <label>
+          Tras iniciar sesión
+          <select
+            className="input"
+            value={newHomeApp}
+            onChange={(e) => setNewHomeApp(e.target.value as "inventory" | "profe")}
+          >
+            <option value="inventory">Inventario (esta aplicación)</option>
+            <option value="profe">Profe (/profe/)</option>
+          </select>
+        </label>
+        <label>
           Correo
           <input className="input" type="email" autoComplete="off" value={newEmail} onChange={(e) => setNewEmail(e.target.value)} />
         </label>
@@ -231,7 +264,7 @@ export function UsersSettings() {
                 <div>
                   <strong>{u.displayName?.trim() || u.email}</strong>
                   <span className="muted small" style={{ display: "block" }}>
-                    {u.email} · {roleLabel(u.role)}
+                    {u.email} · {roleLabel(u.role)} · entrada: {homeAppLabel(u.homeApp)}
                   </span>
                   <span className="muted small" style={{ display: "block" }}>
                     Alta: {new Date(u.createdAt).toLocaleString()}
@@ -239,7 +272,7 @@ export function UsersSettings() {
                 </div>
                 <div className="users-list__actions">
                   <button type="button" className="btn small schedule-test-btn" onClick={() => openEdit(u)}>
-                    Nombre y rol
+                    Nombre, rol y entrada
                   </button>
                   <button type="button" className="btn small schedule-test-btn" onClick={() => setPwdUserId(u.id)}>
                     Cambiar contraseña
@@ -265,6 +298,9 @@ export function UsersSettings() {
           <h3 className="span-2" style={{ fontSize: "1rem", margin: 0 }}>
             Editar {editUser.email}
           </h3>
+          <p className="span-2 muted small" style={{ margin: 0 }}>
+            Si cambia «Tras iniciar sesión», el usuario debe volver a entrar para que aplique el nuevo destino.
+          </p>
           <label>
             Nombre (pantalla)
             <input
@@ -279,6 +315,17 @@ export function UsersSettings() {
             <select className="input" value={editRole} onChange={(e) => setEditRole(e.target.value as "admin" | "viewer")}>
               <option value="viewer">Visor</option>
               <option value="admin">Administrador</option>
+            </select>
+          </label>
+          <label>
+            Tras iniciar sesión
+            <select
+              className="input"
+              value={editHomeApp}
+              onChange={(e) => setEditHomeApp(e.target.value as "inventory" | "profe")}
+            >
+              <option value="inventory">Inventario</option>
+              <option value="profe">Profe</option>
             </select>
           </label>
           <div className="span-2 row gap">

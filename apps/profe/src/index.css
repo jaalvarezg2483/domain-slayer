@@ -1,0 +1,137 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/*
+ * Tema inspirado en referencia tipo “Domain Slayer”:
+ * - Claro: lienzo gris muy suave, tarjetas blancas, sidebar diferenciado, ítem activo azul suave (#e1e9f4).
+ * - Oscuro: base slate (#0f172a), superficies #1e293b, acentos azules legibles.
+ */
+@layer base {
+  :root {
+    --background: 210 29% 97%;
+    --foreground: 222 47% 11%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 222 47% 11%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 222 47% 11%;
+
+    --sidebar: 216 22% 95%;
+    --sidebar-foreground: 222 47% 11%;
+    --sidebar-border: 214 20% 88%;
+
+    --nav-active: 214 42% 92%;
+    --nav-active-foreground: 222 47% 18%;
+
+    --primary: 222 47% 26%;
+    --primary-foreground: 210 40% 98%;
+    --primary-hover: 222 47% 21%;
+
+    --secondary: 214 25% 93%;
+    --secondary-foreground: 222 47% 11%;
+
+    --muted: 214 25% 93%;
+    --muted-foreground: 215 16% 42%;
+
+    --accent: 214 32% 91%;
+    --accent-foreground: 222 47% 11%;
+
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 210 40% 98%;
+    --destructive-hover: 0 72% 46%;
+
+    --secondary-hover: 214 22% 87%;
+
+    --border: 214 20% 88%;
+    --input: 214 20% 88%;
+    --ring: 222 47% 40%;
+
+    --table-header: 222 47% 22%;
+    --table-header-foreground: 210 40% 98%;
+
+    --radius: 0.75rem;
+
+    --shadow-card: 0 1px 3px 0 rgb(15 23 42 / 0.06), 0 1px 2px -1px rgb(15 23 42 / 0.06);
+  }
+
+  .dark {
+    --background: 222 47% 11%;
+    --foreground: 210 40% 98%;
+
+    --card: 217 33% 17%;
+    --card-foreground: 210 40% 98%;
+
+    --popover: 217 33% 17%;
+    --popover-foreground: 210 40% 98%;
+
+    --sidebar: 217 33% 14%;
+    --sidebar-foreground: 210 40% 98%;
+    --sidebar-border: 217 28% 20%;
+
+    --nav-active: 217 45% 22%;
+    --nav-active-foreground: 210 40% 98%;
+
+    --primary: 213 94% 68%;
+    --primary-foreground: 222 47% 11%;
+    --primary-hover: 213 88% 58%;
+
+    --secondary: 217 33% 22%;
+    --secondary-foreground: 210 40% 98%;
+
+    --muted: 217 33% 22%;
+    --muted-foreground: 215 20% 65%;
+
+    --accent: 217 33% 24%;
+    --accent-foreground: 210 40% 98%;
+
+    --destructive: 0 62% 45%;
+    --destructive-foreground: 210 40% 98%;
+    --destructive-hover: 0 58% 40%;
+
+    --secondary-hover: 217 33% 28%;
+
+    --border: 217 28% 22%;
+    --input: 217 28% 22%;
+    --ring: 213 94% 68%;
+
+    --table-header: 222 47% 16%;
+    --table-header-foreground: 210 40% 98%;
+
+    --shadow-card: 0 1px 3px 0 rgb(0 0 0 / 0.35), 0 1px 2px -1px rgb(0 0 0 / 0.3);
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  html {
+    @apply antialiased;
+  }
+  body {
+    @apply bg-background text-foreground font-sans;
+  }
+}
+
+/* Tablas estilo panel: cabecera navy / contraste */
+@layer components {
+  .ds-table {
+    @apply w-full text-sm rounded-lg border border-border overflow-hidden;
+  }
+  .ds-table thead tr {
+    /* Variables definidas en :root / .dark — evita @apply con tokens que PostCSS no resuelve aquí */
+    background-color: hsl(var(--table-header));
+    color: hsl(var(--table-header-foreground));
+  }
+  .ds-table th {
+    @apply text-left font-semibold uppercase tracking-wide text-xs px-3 py-3;
+  }
+  .ds-table tbody tr {
+    @apply border-b border-border/80 bg-card last:border-0;
+  }
+  .ds-table td {
+    @apply px-3 py-3;
+  }
+}

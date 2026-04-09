@@ -12,6 +12,7 @@ import { extractSearchableText } from "./extract-document-text.js";
 import { buildLocalSearchSummary } from "./library-local-intel.js";
 import { libraryDedicatedAssistant } from "./library-assistant.js";
 import { registerUserAdminRoutes } from "./user-admin-routes.js";
+import { registerProfeSchoolRoutes } from "./profe-school-routes.js";
 import type { DocumentSearchHit } from "@domain-slayer/application";
 /** No enviar texto indexado completo al navegador (credenciales). */
 function sanitizeSearchHitsForClient(items: DocumentSearchHit[]): DocumentSearchHit[] {
@@ -124,6 +125,7 @@ export function createApiRouter(broker: ServiceBroker, options?: ApiRouterOption
   if (options?.dataSource) {
     registerAuthRoutes(r, options.dataSource);
     registerUserAdminRoutes(r, options.dataSource);
+    registerProfeSchoolRoutes(r, options.dataSource);
   }
 
   const uploadDir =

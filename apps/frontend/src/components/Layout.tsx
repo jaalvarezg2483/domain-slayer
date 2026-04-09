@@ -9,6 +9,7 @@ import {
 import { hasAuthToken, setAuthToken } from "../api";
 import { useAuthMode } from "../auth-context";
 import { AppBrand } from "./AppBrand";
+import { ProfeEmailRedirect } from "./ProfeEmailRedirect";
 import { SessionTransitionOverlay } from "./SessionTransitionOverlay";
 import { ThemeToggle } from "./ThemeToggle";
 import {
@@ -266,6 +267,7 @@ export function Layout() {
       </aside>
       <main className="main">
         <div className="main-inner">
+          <ProfeEmailRedirect />
           {!authRequired ? (
             <div className="card layout-auth-banner" role="status">
               <strong>Sin inicio de sesión obligatorio:</strong> cualquiera con el enlace puede usar la aplicación. Para

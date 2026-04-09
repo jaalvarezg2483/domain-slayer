@@ -1,12 +1,22 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { api, hasAuthToken, setAuthToken } from "../api";
-import { setSessionDisplayName } from "../lib/auth-session";
+import { readAuthPayload, setSessionDisplayName } from "../lib/auth-session";
+import { profeAppEntryUrl, sessionUsesProfeApp } from "../lib/profe-app-route";
 import { AppBrand } from "../components/AppBrand";
 import { ThemeToggle } from "../components/ThemeToggle";
 
+function safeInternalPath(next: string | null): string | null {
+  if (!next || !next.startsWith("/")) return null;
+  if (next.startsWith("//")) return null;
+  if (next.includes("..")) return null;
+  if (next.startsWith("/profe")) return null;
+  return next;
+}
+
 export function Login() {
   const nav = useNavigate();
+  const [searchParams] = useSearchParams();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [err, setErr] = useState<string | null>(null);
@@ -23,7 +33,12 @@ export function Login() {
           return;
         }
         if (hasAuthToken()) {
-          nav("/", { replace: true });
+          const p = readAuthPayload();
+          if (p?.email && sessionUsesProfeApp(p.email, p.homeApp)) {
+            window.location.replace(profeAppEntryUrl());
+          } else {
+            nav("/", { replace: true });
+          }
         }
       })
       .catch(() => {})
@@ -57,7 +72,14 @@ export function Login() {
         } catch {
           /* ignorar */
         }
-        nav("/", { replace: true });
+        const loggedEmail = (r.user?.email ?? email).trim().toLowerCase();
+        const homeApp = r.user?.homeApp;
+        if (sessionUsesProfeApp(loggedEmail, homeApp)) {
+          window.location.replace(profeAppEntryUrl());
+          return;
+        }
+        const next = safeInternalPath(searchParams.get("next"));
+        nav(next ?? "/", { replace: true });
       }
     } catch (e) {
       setErr((e as Error).message);

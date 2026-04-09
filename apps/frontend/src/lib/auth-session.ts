@@ -5,12 +5,16 @@ const DISPLAY_NAME_SESSION_KEY = "ds_display_name";
 
 export type AuthRole = "admin" | "viewer";
 
+export type AuthHomeApp = "inventory" | "profe";
+
 export type AuthPayload = {
   sub: string;
   email: string;
   role: AuthRole;
   /** Nombre de persona (`display_name` en BD); vacío si no está definido o si el token solo traía la parte local del correo. */
   name: string;
+  /** Claim del JWT; ausente en tokens antiguos (entonces se usa `VITE_PROFE_*` en redirección a profe). */
+  homeApp?: AuthHomeApp;
 };
 
 function decodeJwtPayload(token: string): Record<string, unknown> | null {
@@ -39,7 +43,10 @@ export function readAuthPayload(): AuthPayload | null {
   /** Solo nombre real del API; si el token trae solo la parte local del correo (tokens viejos), no lo mostramos como nombre. */
   const name =
     nameRaw && (!local || nameRaw.toLowerCase() !== local) ? nameRaw : "";
-  return { sub: json.sub, email, role, name };
+  const ha = json.homeApp;
+  const homeApp: AuthHomeApp | undefined =
+    ha === "profe" ? "profe" : ha === "inventory" ? "inventory" : undefined;
+  return { sub: json.sub, email, role, name, homeApp };
 }
 
 export function isAdminSession(): boolean {

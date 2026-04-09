@@ -9,6 +9,13 @@ const SCRYPT_KEY_LEN = 64;
 
 export type AppRole = "admin" | "viewer";
 
+/** SPA de entrada en despliegue combinado (columna `home_app`). */
+export type UserHomeApp = "inventory" | "profe";
+
+export function homeAppFromDb(value: string | null | undefined): UserHomeApp {
+  return value === "profe" ? "profe" : "inventory";
+}
+
 export function hashPassword(plain: string): string {
   const salt = randomBytes(16);
   const hash = scryptSync(plain, salt, SCRYPT_KEY_LEN);
@@ -34,6 +41,8 @@ export type AuthUser = {
   role: AppRole;
   /** Nombre para mostrar (`display_name`); vacío si el usuario no lo ha definido. */
   name: string;
+  /** Tokens antiguos sin claim → se trata como inventario. */
+  homeApp: UserHomeApp;
 };
 
 export type AuthedRequest = Request & { auth?: AuthUser };
@@ -63,10 +72,12 @@ export function readAuthUserFromRequest(req: Request): AuthUser | null {
       email: string;
       role?: string;
       name?: string;
+      homeApp?: string;
     };
     const role = roleFromDb(payload.role);
     const name = typeof payload.name === "string" && payload.name.trim() ? payload.name.trim() : "";
-    return { userId: payload.sub, email: payload.email, role, name };
+    const homeApp = homeAppFromDb(payload.homeApp);
+    return { userId: payload.sub, email: payload.email, role, name, homeApp };
   } catch {
     return null;
   }
@@ -149,11 +160,16 @@ export function registerAuthRoutes(r: Router, ds: DataSource): void {
       }
       const role = roleFromDb(user.role);
       const name = displayNameFromUser(user);
-      const token = jwt.sign({ sub: user.id, email: user.email, role, name }, secret, { expiresIn: "8h" });
+      const homeApp = homeAppFromDb(user.homeApp);
+      const token = jwt.sign(
+        { sub: user.id, email: user.email, role, name, homeApp },
+        secret,
+        { expiresIn: "8h" }
+      );
       res.json({
         token,
         expiresIn: 28_800,
-        user: { email: user.email, displayName: name, role },
+        user: { email: user.email, displayName: name, role, homeApp },
       });
     } catch (e) {
       next(e);
@@ -186,6 +202,7 @@ export async function bootstrapInitialAdmin(ds: DataSource, logger: Logger): Pro
       passwordHash: hashPassword(password),
       displayName: displayName || email.split("@")[0] || email,
       role: "admin",
+      homeApp: "inventory",
       createdAt: new Date(),
     });
     logger.info({ email }, "Usuario administrador inicial creado (INITIAL_ADMIN_*)");

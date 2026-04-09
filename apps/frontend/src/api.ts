@@ -317,13 +317,30 @@ export const api = {
   users: {
     list: () =>
       request<{
-        items: { id: string; email: string; displayName: string; role: string; createdAt: string }[];
+        items: {
+          id: string;
+          email: string;
+          displayName: string;
+          role: string;
+          homeApp: "inventory" | "profe";
+          createdAt: string;
+        }[];
       }>(`/users`),
-    create: (body: { email: string; password: string; displayName?: string; role?: string }) =>
-      request<{ ok: boolean; email: string }>(`/users`, { method: "POST", body: JSON.stringify(body) }),
+    create: (body: {
+      email: string;
+      password: string;
+      displayName?: string;
+      role?: string;
+      homeApp?: "inventory" | "profe";
+    }) => request<{ ok: boolean; email: string }>(`/users`, { method: "POST", body: JSON.stringify(body) }),
     update: (
       id: string,
-      body: { password?: string; displayName?: string; role?: "admin" | "viewer" }
+      body: {
+        password?: string;
+        displayName?: string;
+        role?: "admin" | "viewer";
+        homeApp?: "inventory" | "profe";
+      }
     ) => request<{ ok: boolean }>(`/users/${id}`, { method: "PATCH", body: JSON.stringify(body) }),
     remove: (id: string) => request<void>(`/users/${id}`, { method: "DELETE" }),
   },
@@ -345,7 +362,7 @@ export const api = {
         token?: string;
         authDisabled?: boolean;
         message?: string;
-        user?: { email: string; displayName?: string; role?: string };
+        user?: { email: string; displayName?: string; role?: string; homeApp?: "inventory" | "profe" };
       }>(`/auth/login`, { method: "POST", body: JSON.stringify({ email, password }) }),
   },
 };

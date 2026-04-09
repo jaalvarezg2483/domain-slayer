@@ -51,6 +51,10 @@ async function ensureAppUsersExtraColumnsSqlite(qr: QueryRunner, logger: Logger)
     await qr.query(`ALTER TABLE app_users ADD COLUMN role VARCHAR(20) NOT NULL DEFAULT 'admin'`);
     logger.info("SQLite: columna app_users.role añadida");
   }
+  if (!names.has("home_app")) {
+    await qr.query(`ALTER TABLE app_users ADD COLUMN home_app VARCHAR(20) NOT NULL DEFAULT 'inventory'`);
+    logger.info("SQLite: columna app_users.home_app añadida");
+  }
   await stripEmailLocalAsDisplayNameSqlite(qr, logger);
 }
 
@@ -65,6 +69,11 @@ async function ensureAppUsersExtraColumnsMssql(qr: QueryRunner, logger: Logger):
       ALTER TABLE dbo.app_users ADD role VARCHAR(20) NOT NULL CONSTRAINT DF_app_users_role DEFAULT 'admin'
   `);
   logger.info("SQL Server: columna app_users.role verificada");
+  await qr.query(`
+    IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE Name = N'home_app' AND Object_ID = Object_ID(N'dbo.app_users'))
+      ALTER TABLE dbo.app_users ADD home_app VARCHAR(20) NOT NULL CONSTRAINT DF_app_users_home_app DEFAULT 'inventory'
+  `);
+  logger.info("SQL Server: columna app_users.home_app verificada");
   await stripEmailLocalAsDisplayNameMssql(qr, logger);
 }
 

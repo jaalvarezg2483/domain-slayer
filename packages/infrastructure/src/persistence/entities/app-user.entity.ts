@@ -19,6 +19,13 @@ export class AppUserEntity {
   @Column({ type: "varchar", length: 20, default: "admin" })
   role!: string;
 
+  /**
+   * Tras login, a qué SPA se redirige en despliegue combinado: `inventory` (DomainSlayer) o `profe`.
+   * Reversible: en despliegues separados puede ignorarse o dejarse todo en `inventory`.
+   */
+  @Column({ name: "home_app", type: "varchar", length: 20, default: "inventory" })
+  homeApp!: string;
+
   @Column({ name: "created_at", type: "datetime" })
   createdAt!: Date;
 }
